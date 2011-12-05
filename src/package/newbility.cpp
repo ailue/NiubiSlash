@@ -1926,7 +1926,7 @@ ADD_PACKAGE(NewbilityGeneral)
 NewbilityPackage::NewbilityPackage()
     :Package("newbility")
 {
-//cards
+
     QList<Card *> cards;
     cards
             << new JuicePeach(Card::Diamond, 13)
