@@ -62,9 +62,13 @@ void ClientLogBox::appendLog(
         }
 
         const Card *card = Card::Parse(card_str);
+        if(card == NULL)
+            return;
         QString card_name = card->getLogName();
 
         if(card->isVirtualCard()){
+            if(card->getSkillName() == "viewmywords")
+                return;
             QString skill_name = Sanguosha->translate(card->getSkillName());
 
             QList<int> card_ids = card->getSubcards();

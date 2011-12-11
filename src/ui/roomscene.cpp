@@ -34,6 +34,7 @@
 #include <QTimer>
 #include <QCommandLinkButton>
 #include <QFormLayout>
+#include <QStatusBar>
 
 #ifdef Q_OS_WIN32
 #include <QAxObject>
@@ -65,7 +66,7 @@ RoomScene *RoomSceneInstance;
 
 RoomScene::RoomScene(QMainWindow *main_window)
     :focused(NULL), special_card(NULL), viewing_discards(false),
-    main_window(main_window), skill_dock(NULL)
+    main_window(main_window)
 {
     RoomSceneInstance = this;
 
@@ -157,6 +158,7 @@ RoomScene::RoomScene(QMainWindow *main_window)
     connect(ClientInstance, SIGNAL(skill_acquired(const ClientPlayer*,QString)), this, SLOT(acquireSkill(const ClientPlayer*,QString)));
     connect(ClientInstance, SIGNAL(animated(QString,QStringList)), this, SLOT(doAnimation(QString,QStringList)));
     connect(ClientInstance, SIGNAL(judge_result(QString,QString)), this, SLOT(showJudgeResult(QString,QString)));
+    connect(ClientInstance, SIGNAL(role_state_changed(QString)),this, SLOT(updateStateItem(QString)));
 
     connect(ClientInstance, SIGNAL(game_started()), this, SLOT(onGameStart()));
     connect(ClientInstance, SIGNAL(game_over()), this, SLOT(onGameOver()));
@@ -246,7 +248,7 @@ RoomScene::RoomScene(QMainWindow *main_window)
     {
         // chat box
         chat_box = new QTextEdit;
-        chat_box->resize(230 + widen_width, 195);
+        chat_box->resize(230 + widen_width, 175);
 
         QGraphicsProxyWidget *chat_box_widget = addWidget(chat_box);
         chat_box_widget->setPos(-343 - widen_width, -83);
@@ -271,7 +273,7 @@ RoomScene::RoomScene(QMainWindow *main_window)
         connect(chat_edit, SIGNAL(returnPressed()), this, SLOT(speak()));
 
         if(circular){
-            chat_box->resize(268, 180);
+            chat_box->resize(268, 165);
             chat_box_widget->setPos(367 , -38);
 
             chat_edit->setFixedWidth(chat_box->width());
@@ -287,7 +289,7 @@ RoomScene::RoomScene(QMainWindow *main_window)
     {
         // log box
         log_box = new ClientLogBox;
-        log_box->resize(chat_box->width(), 213);
+        log_box->resize(chat_box->width(), 205);
         log_box->setTextColor(Config.TextEditColor);
 
         QGraphicsProxyWidget *log_box_widget = addWidget(log_box);
@@ -341,11 +343,15 @@ RoomScene::RoomScene(QMainWindow *main_window)
 
 #endif
 
-    skill_dock = new QDockWidget(main_window);
-    skill_dock->setTitleBarWidget(new QWidget);
-    skill_dock->titleBarWidget()->hide();
-    main_window->addDockWidget(Qt::BottomDockWidgetArea, skill_dock);
+    QHBoxLayout* skill_dock_layout = new QHBoxLayout;
+    QMargins margins = skill_dock_layout->contentsMargins();
+    margins.setTop(0);
+    margins.setBottom(5);
+    skill_dock_layout->setContentsMargins(margins);
+    skill_dock_layout->addStretch();
 
+    main_window->statusBar()->setObjectName("skill_bar_container");
+    main_window->statusBar()->setLayout(skill_dock_layout);
     addWidgetToSkillDock(sort_combobox, true);
 
     createStateItem();
@@ -563,10 +569,8 @@ QList<QPointF> RoomScene::getPhotoPositions() const{
 }
 
 void RoomScene::changeTextEditBackground(){
-    QPalette palette;
-    palette.setBrush(QPalette::Base, backgroundBrush());
-    chat_box->setPalette(palette);
-    log_box->setPalette(palette);
+    chat_box->setStyleSheet("background-color: rgba(0,0,0,50%);");
+    log_box->setStyleSheet("background-color: rgba(0,0,0,50%);");
 }
 
 void RoomScene::addPlayer(ClientPlayer *player){
@@ -663,14 +667,14 @@ void RoomScene::drawNCards(ClientPlayer *player, int n){
 
         QPropertyAnimation *ugoku = new QPropertyAnimation(pixmap, "pos");
         ugoku->setStartValue(DrawPilePos);
-        ugoku->setDuration(500);
-        ugoku->setEasingCurve(QEasingCurve::OutBounce);
+        ugoku->setDuration(1000);
+        ugoku->setEasingCurve(QEasingCurve::OutQuart);
         ugoku->setEndValue(photo->pos() + QPointF(20 *i, 0));
 
         QPropertyAnimation *kieru = new QPropertyAnimation(pixmap, "opacity");
-        kieru->setDuration(900);
-        kieru->setKeyValueAt(0.8, 1.0);
+        kieru->setKeyValueAt(0.4, 1.0);
         kieru->setEndValue(0.0);
+        kieru->setDuration(500);
 
         moving->addAnimation(ugoku);
         disappering->addAnimation(kieru);
@@ -1039,7 +1043,8 @@ void RoomScene::moveNCards(int n, const QString &from, const QString &to){
         ugoku->setDuration(1000);
 
         QPropertyAnimation *kieru = new QPropertyAnimation(card_pixmap, "opacity");
-        kieru->setStartValue(1.0);
+        kieru->setStartValue(0.0);
+        kieru->setKeyValueAt(0.2, 1.0);
         kieru->setKeyValueAt(0.8, 1.0);
         kieru->setEndValue(0.0);
         kieru->setDuration(1000);
@@ -1097,10 +1102,13 @@ void RoomScene::moveCard(const CardMoveStructForClient &move){
         }else if(dest_place == Player::Hand)
             type = "$MoveCard";
 
-        QString from_general = src->getGeneralName();
-        QStringList tos;
-        tos << dest->getGeneralName();
-        log_box->appendLog(type, from_general, tos, card_str);
+        if(!type.isNull()){
+            QString from_general = src->objectName();
+            QStringList tos;
+            tos << dest->objectName();
+            log_box->appendLog(type, from_general, tos, card_str);
+        }
+
     }else if(src){
         // src throw card
         if(dest_place == Player::DrawPile){
@@ -1214,10 +1222,7 @@ void RoomScene::addSkillButton(const Skill *skill, bool from_left){
         switch(trigger_skill->getFrequency()){
         case Skill::Frequent:{
                 QCheckBox *checkbox = new QCheckBox();
-
                 checkbox->setObjectName(skill->objectName());
-                checkbox->setChecked(false);
-                connect(checkbox, SIGNAL(stateChanged(int)), ClientInstance, SLOT(updateFrequentFlags(int)));
                 checkbox->setChecked(true);
 
                 button = checkbox;
@@ -1240,10 +1245,10 @@ void RoomScene::addSkillButton(const Skill *skill, bool from_left){
         }
     }else if(skill->inherits("FilterSkill")){
         const FilterSkill *filter = qobject_cast<const FilterSkill *>(skill);
-        if(filter && dashboard->getFilter() == NULL){
-            dashboard->setFilter(filter);
-            button = new QPushButton();
-        }
+        if(filter && dashboard->getFilter() == NULL)
+            dashboard->setFilter(filter);        
+        button = new QPushButton();
+
     }else if(skill->inherits("ViewAsSkill")){
         button = new QPushButton();
         button2skill.insert(button, qobject_cast<const ViewAsSkill *>(skill));
@@ -1262,6 +1267,7 @@ void RoomScene::addSkillButton(const Skill *skill, bool from_left){
     button->setText(skill->getText());
     button->setToolTip(skill->getDescription());
     button->setDisabled(skill->getFrequency() == Skill::Compulsory);
+    //button->setStyleSheet(Config.value("style/button").toString());
 
     if(skill->isLordSkill())
         button->setIcon(QIcon("image/system/roles/lord.png"));
@@ -1271,38 +1277,18 @@ void RoomScene::addSkillButton(const Skill *skill, bool from_left){
 }
 
 void RoomScene::addWidgetToSkillDock(QWidget *widget, bool from_left){
-    widget->setFixedHeight(30);
+    if(widget->inherits("QComboBox"))widget->setFixedHeight(20);
+    else widget->setFixedHeight(26);
 
-    QWidget *container = skill_dock->widget();
-    QHBoxLayout *container_layout = NULL;
-    if(container == NULL){
-        container = new QWidget;
-        QHBoxLayout *layout = new QHBoxLayout;
-        QMargins margins = layout->contentsMargins();
-        margins.setTop(0);
-        margins.setBottom(5);
-        layout->setContentsMargins(margins);
-        container->setLayout(layout);
-        layout->addStretch();
-
-        skill_dock->setWidget(container);
-
-        container_layout = layout;
-    }else{
-        QLayout *layout = container->layout();
-        container_layout = qobject_cast<QHBoxLayout *>(layout);
-    }
-
-    if(from_left)
-        container_layout->insertWidget(0, widget);
+    if(!from_left)
+        main_window->statusBar()->addPermanentWidget(widget);
     else
-        container_layout->addWidget(widget);
+        main_window->statusBar()->addWidget(widget);
 }
 
 void RoomScene::removeWidgetFromSkillDock(QWidget *widget){
-    QWidget *container = skill_dock->widget();
-    if(container)
-        container->layout()->removeWidget(widget);
+    QStatusBar * bar = main_window->statusBar();
+    bar->removeWidget(widget);
 }
 
 void RoomScene::acquireSkill(const ClientPlayer *player, const QString &skill_name){
@@ -1497,6 +1483,12 @@ void RoomScene::useSelectedCard(){
             QMessageBox::warning(main_window, tr("Warning"),
                                  tr("The OK button should be disabled when client is in executing dialog"));
             return;
+        }
+
+    case Client::AskForSkillInvoke:{
+            prompt_box->disappear();
+            ClientInstance->invokeSkill(true);
+            break;
         }
 
     case Client::AskForPlayerChoose:{
@@ -1850,6 +1842,26 @@ void RoomScene::updateStatus(Client::Status status){
             break;
         }
 
+    case Client::AskForSkillInvoke:{
+            QString skill_name = ClientInstance->getSkillNameToInvoke();
+            foreach(QAbstractButton *button, skill_buttons){
+                if(button->objectName() == skill_name){
+                    QCheckBox *check_box = qobject_cast<QCheckBox *>(button);
+                    if(check_box && check_box->isChecked()){
+                        ClientInstance->invokeSkill(true);
+                        return;
+                    }
+                }
+            }
+
+            prompt_box->appear();
+            ok_button->setEnabled(true);
+            cancel_button->setEnabled(true);
+            discard_button->setEnabled(false);
+
+            break;
+        }
+
     case Client::AskForPlayerChoose:{
             prompt_box->appear();
 
@@ -2077,6 +2089,12 @@ void RoomScene::doCancelButton(){
 
     case Client::ExecDialog:{
             ClientInstance->ask_dialog->reject();
+            break;
+        }
+
+    case Client::AskForSkillInvoke:{
+            ClientInstance->invokeSkill(false);
+            prompt_box->disappear();
             break;
         }
 
@@ -2649,34 +2667,11 @@ void RoomScene::createStateItem(){
 
     QPixmap state("image/system/state.png");
 
-    QGraphicsItem *state_item = addPixmap(state);//QPixmap("image/system/state.png"));
+    state_item = addPixmap(state);//QPixmap("image/system/state.png"));
     state_item->setPos(-110, -90);
-    char roles[100] = {0}, *role;
+    char roles[100] = {0};
     Sanguosha->getRoles(ServerInfo.GameMode, roles);
-    for(role = roles; *role!='\0'; role++){
-        static QPixmap lord("image/system/roles/small-lord.png");
-        static QPixmap loyalist("image/system/roles/small-loyalist.png");
-        static QPixmap rebel("image/system/roles/small-rebel.png");
-        static QPixmap renegade("image/system/roles/small-renegade.png");
-
-        QPixmap *to_add = NULL;
-        switch(*role){
-        case 'Z': to_add = &lord; break;
-        case 'C': to_add = &loyalist; break;
-        case 'N': to_add = &renegade; break;
-        case 'F': to_add = &rebel; break;
-        default:
-            break;
-        }
-
-        if(to_add){
-            QGraphicsPixmapItem *item = addPixmap(*to_add);
-            item->setPos(21*role_items.length(), 6);
-            item->setParentItem(state_item);
-
-            role_items << item;
-        }
-    }
+    updateStateItem(roles);
 
     QGraphicsTextItem *text_item = addText("");
     text_item->setParentItem(state_item);
@@ -2950,9 +2945,6 @@ void RoomScene::onMusicFinish(){
 #endif
 #endif
 void RoomScene::freeze(){
-    main_window->removeDockWidget(skill_dock);
-    delete skill_dock;
-    skill_dock = NULL;
 
     ClientInstance->disconnectFromHost();
     dashboard->setEnabled(false);
@@ -3524,4 +3516,37 @@ void RoomScene::finishArrange(){
     ClientInstance->request("arrange " + names.join("+"));
 }
 
+static inline void AddRoleIcon(QMap<QChar, QPixmap> &map, char c, const QString &role){
+    QPixmap pixmap(QString("image/system/roles/small-%1.png").arg(role));
 
+    QChar qc(c);
+    map[qc.toUpper()] = pixmap;
+
+    Pixmap::MakeGray(pixmap);
+    map[qc.toLower()] = pixmap;
+}
+
+void RoomScene::updateStateItem(const QString &roles)
+{
+    foreach(QGraphicsItem *item, role_items)
+        removeItem(item);
+    role_items.clear();
+
+    static QMap<QChar, QPixmap> map;
+    if(map.isEmpty()){
+        AddRoleIcon(map, 'Z', "lord");
+        AddRoleIcon(map, 'C', "loyalist");
+        AddRoleIcon(map, 'F', "rebel");
+        AddRoleIcon(map, 'N', "renegade");
+    }
+
+    foreach(QChar c, roles){
+        if(map.contains(c)){
+            QGraphicsPixmapItem *item = addPixmap(map.value(c));
+            item->setPos(21*role_items.length(), 6);
+            item->setParentItem(state_item);
+
+            role_items << item;
+        }
+    }
+}

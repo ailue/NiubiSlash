@@ -38,6 +38,7 @@ public:
     void setCurrent(ServerPlayer *current);
     int alivePlayerCount() const;
     QList<ServerPlayer *> getOtherPlayers(ServerPlayer *except) const;
+    QList<ServerPlayer *> getPlayers() const;
     QList<ServerPlayer *> getAllPlayers() const;
     QList<ServerPlayer *> getAlivePlayers() const;
     void output(const QString &message);
@@ -97,6 +98,8 @@ public:
     bool hasWelfare(const ServerPlayer *player) const;
     ServerPlayer *getFront(ServerPlayer *a, ServerPlayer *b) const;
     void signup(ServerPlayer *player, const QString &screen_name, const QString &avatar, bool is_robot);
+    ServerPlayer *getOwner() const;
+    void updateStateItem();
 
     void reconnect(ServerPlayer *player, ClientSocket *socket);
     void marshal(ServerPlayer *player);
@@ -149,6 +152,7 @@ public:
     void askForGeneralAsync(ServerPlayer *player);
     const Card *askForSinglePeach(ServerPlayer *player, ServerPlayer *dying);
 
+    void toggleReadyCommand(ServerPlayer *player, const QString &);
     void speakCommand(ServerPlayer *player, const QString &arg);
     void trustCommand(ServerPlayer *player, const QString &arg);
     void kickCommand(ServerPlayer *player, const QString &arg);
@@ -161,6 +165,8 @@ public:
     void broadcastProperty(ServerPlayer *player, const char *property_name, const QString &value = QString());
     void broadcastInvoke(const char *method, const QString &arg = ".", ServerPlayer *except = NULL);
     void startTest(const QString &to_test);
+    void niubiMoveout(const QString result);
+    QString getNiubiOwner(QString armor, int option = 1);
 
 protected:
     virtual void run();
@@ -168,7 +174,6 @@ protected:
 private:
     QString mode;
     QList<ServerPlayer*> players, alive_players;
-    ServerPlayer *owner;
     int player_count;
     ServerPlayer *current;
     ServerPlayer *reply_player;
@@ -177,7 +182,6 @@ private:
     QList<int> *draw_pile, *discard_pile;
     bool game_started;
     bool game_finished;
-    int signup_count;
     lua_State *L;
     QList<AI *> ais;
 

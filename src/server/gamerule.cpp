@@ -60,6 +60,8 @@ void GameRule::onPhaseChange(ServerPlayer *player) const{
         }
 
     case Player::Play: {
+            player->clearHistory();
+
             while(player->isAlive()){
                 CardUseStruct card_use;
                 room->activate(player, card_use);
@@ -112,7 +114,6 @@ void GameRule::onPhaseChange(ServerPlayer *player) const{
             }
 
             player->clearFlags();
-            player->clearHistory();
 
             return;
         }
@@ -152,6 +153,35 @@ bool GameRule::trigger(TriggerEvent event, ServerPlayer *player, QVariant &data)
 
     switch(event){
     case GameStart: {
+            if(player->isLord() && !Sanguosha->getBanPackages().contains("newbility")){
+                //niubi-card get out
+                ServerPlayer *niubi_player = player;
+                if(player->getState() == "robot"){
+                    QList<ServerPlayer *> players = room->getOtherPlayers(player), unrobot;
+                    foreach(ServerPlayer *p, players){
+                        if(p->getState() != "robot"){
+                            unrobot << p;
+                            break;
+                        }
+                    }
+                    niubi_player = unrobot.first();
+                }
+                QString result = Sanguosha->getSetupString().split(":").last().contains("S") ?
+                                 room->askForChoice(niubi_player,"niubi-getout","player+player2+package+cancel") :
+                                 room->askForChoice(niubi_player,"niubi-getout","player+package+cancel");
+
+                LogMessage log;
+                log.from = niubi_player;
+                log.type = "#NiubiSelect";
+                log.arg = "niubi" + result;
+                room->sendLog(log);
+
+                if(result != "cancel"){
+                    room->niubiMoveout(result);
+                    room->getThread()->delay();
+                }
+            }
+
             if(player->getGeneral()->getKingdom() == "god"){
                 QString new_kingdom = room->askForKingdom(player);
                 room->setPlayerProperty(player, "kingdom", new_kingdom);
@@ -163,8 +193,14 @@ bool GameRule::trigger(TriggerEvent event, ServerPlayer *player, QVariant &data)
                 room->sendLog(log);
             }
 
-            if(player->isLord())
+            if(player->getMaxHP() < 1){
+                room->setPlayerProperty(player, "maxhp", 1);
+                room->setPlayerProperty(player, "hp", 1);
+            }
+
+            if(player->isLord()){
                 setGameProcess(room);
+            }
 
             player->drawCards(4, false);
 
@@ -205,6 +241,28 @@ bool GameRule::trigger(TriggerEvent event, ServerPlayer *player, QVariant &data)
             room->setPlayerProperty(player, "hp", new_hp);
             room->broadcastInvoke("hpChange", QString("%1:%2").arg(player->objectName()).arg(recover));
 
+            if(player->isChained() && recover_struct.card->inherits("JuicePeach")){
+                room->setPlayerProperty(player, "chained", false);
+
+                QList<ServerPlayer *> chained_players = room->getOtherPlayers(player);
+                foreach(ServerPlayer *chained_player, chained_players){
+                    if(chained_player->isChained() && chained_player->isWounded()){
+                        room->setPlayerProperty(chained_player, "chained", false);
+
+                        LogMessage log;
+                        log.type = "#IronChainRecover";
+                        log.from = chained_player;
+                        room->sendLog(log);
+
+                        RecoverStruct recover;
+                        recover.who = recover_struct.who;
+                        recover.card = recover_struct.card;
+                        room->recover(chained_player, recover);
+
+                        //break;
+                    }
+                 }
+            }
             break;
         }
 
@@ -424,17 +482,8 @@ bool GameRule::trigger(TriggerEvent event, ServerPlayer *player, QVariant &data)
             if(room->getMode() == "02_1v1"){
                 QStringList list = player->tag["1v1Arrange"].toStringList();
 
-                if(!list.isEmpty()){
-                    player->tag["1v1ChangeGeneral"] = list.takeFirst();
-                    player->tag["1v1Arrange"] = list;
-
-                    DamageStar damage = data.value<DamageStar>();
-
-                    if(damage == NULL)
-                        changeGeneral1v1(player);
-
+                if(!list.isEmpty())
                     return false;
-                }
             }
 
             QString winner = getWinner(player);
@@ -460,6 +509,21 @@ bool GameRule::trigger(TriggerEvent event, ServerPlayer *player, QVariant &data)
 
             setGameProcess(room);
 
+            if(room->getMode() == "02_1v1"){
+                QStringList list = player->tag["1v1Arrange"].toStringList();
+
+                if(!list.isEmpty()){
+                    player->tag["1v1ChangeGeneral"] = list.takeFirst();
+                    player->tag["1v1Arrange"] = list;
+
+                    DamageStar damage = data.value<DamageStar>();
+
+                    if(damage == NULL){
+                        changeGeneral1v1(player);
+                        return false;
+                    }
+                }
+            }
 
             break;
         }
@@ -710,7 +774,7 @@ bool HulaoPassMode::trigger(TriggerEvent event, ServerPlayer *player, QVariant &
                 }
             }else
                 player->drawCards(player->getSeat() + 1, false);
-
+//youknow
             if(player->getGeneralName() == "zhangchunhua"){
                 if(qrand() % 3 == 0)
                     room->killPlayer(player);
@@ -802,3 +866,93 @@ bool HulaoPassMode::trigger(TriggerEvent event, ServerPlayer *player, QVariant &
     return GameRule::trigger(event, player, data);
 }
 
+RunawayMode::RunawayMode(QObject *parent)
+    :GameRule(parent)
+{
+    setObjectName("runaway_mode");
+}
+
+bool RunawayMode::trigger(TriggerEvent event, ServerPlayer *player, QVariant &data) const{
+    Room *room = player->getRoom();
+
+    switch(event)
+    {
+    case TurnStart:{
+            LogMessage log, log2;
+            int playercount = room->getAlivePlayers().length();
+            QList<int> card_ids = room->getNCards(1);
+            int runum = Sanguosha->getCard(card_ids.first())->getNumber();
+            if(runum >= playercount){
+                log.type = "#Runprex";
+                log.from = player;
+                log.arg = QString::number(runum);
+                room->sendLog(log);
+                break;
+            }
+
+            log.type = "#Runpre";
+            log.from = player;
+            log.arg = QString::number(runum);
+            room->sendLog(log);
+
+            if(player->getDefensiveHorse() || player->getOffensiveHorse()){
+                QString step;
+                if(player->getDefensiveHorse() && player->getOffensiveHorse())
+                    step = room->askForChoice(player, "runbyhorse", "fast+slow+kao");
+                else if(player->getDefensiveHorse())
+                    step = room->askForChoice(player, "runbyhorse", "slow+kao");
+                else
+                    step = room->askForChoice(player, "runbyhorse", "fast+kao");
+                if(step == "fast"){
+                    log2.type = "$runfast";
+                    log2.card_str = player->getOffensiveHorse()->toString();
+                    runum ++;
+                }
+                else if(step == "slow"){
+                    log2.type = "$runslow";
+                    log2.card_str = player->getDefensiveHorse()->toString();
+                    runum --;
+                }
+                log2.from = player;
+                room->sendLog(log2);
+            }
+
+            int myseat = player->getSeat();
+            for(int i = 0; i < runum; i++){
+                room->swapSeat(player, player->getNextAlive());
+                room->getThread()->delay();
+            }
+
+            log.type = "#Runaway";
+            log.from = player;
+            log.arg = QString::number(myseat);
+            log.arg2 = QString::number(player->getSeat());
+            room->sendLog(log);
+            /*
+            int myseat = player->getSeat();
+            ServerPlayer *target = player;
+            foreach(target, room->getAlivePlayers()){
+                if(target->getSeat() == myseat + runum)
+                    break;
+            }
+            room->swapSeat(player, target);
+
+            log.type = "#Runaway2";
+            log.from = player;
+            log.to << target;
+            log.arg = QString::number(myseat);
+            log.arg2 = QString::number(myseat + runum);
+            room->sendLog(log);
+            */
+
+            room->throwCard(card_ids.first());
+
+            break;
+        }
+
+    default:
+        break;
+    }
+
+    return GameRule::trigger(event, player, data);
+}

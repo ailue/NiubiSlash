@@ -21,13 +21,11 @@ void Slash::setNature(DamageStruct::Nature nature){
 }
 
 bool Slash::IsAvailable(const Player *player){
-    if(player->hasFlag("tianyi_failed") || player->hasFlag("xianzhen_failed"))
+    if((player->hasFlag("tianyi_failed") && !player->hasArmorEffect("apple"))
+        || player->hasFlag("xianzhen_failed"))
         return false;
 
-    if(player->hasWeapon("crossbow"))
-        return true;
-    else
-        return player->canSlashWithoutCrossbow();
+    return player->hasWeapon("crossbow") || player->canSlashWithoutCrossbow();
 }
 
 bool Slash::isAvailable(const Player *player) const{
@@ -130,6 +128,17 @@ void Peach::use(Room *room, ServerPlayer *source, const QList<ServerPlayer *> &t
     else
         foreach(ServerPlayer *tmp, targets)
             room->cardEffect(this, source, tmp);
+
+    if(getSuit() == Card::Spade){
+        room->setPlayerMark(source, "poison",1);
+        room->setEmotion(source, "bad");
+        LogMessage log;
+        log.type = "#Poison_in";
+        log.from = source;
+        room->sendLog(log);
+
+        room->acquireSkill(source, "poson", false);
+    }
 }
 
 void Peach::onEffect(const CardEffectStruct &effect) const{
@@ -438,9 +447,18 @@ KylinBow::KylinBow(Suit suit, int number)
 }
 
 class EightDiagramSkill: public ArmorSkill{
-public:
+private:
     EightDiagramSkill():ArmorSkill("eight_diagram"){
         events << CardAsked;
+    }
+
+public:
+    static EightDiagramSkill *GetInstance(){
+        static EightDiagramSkill *instance = NULL;
+        if(instance == NULL)
+            instance = new EightDiagramSkill;
+
+        return instance;
     }
 
     virtual int getPriority() const{
@@ -464,6 +482,7 @@ public:
                     jink->setSkillName(objectName());
                     room->provide(jink);
                     room->setEmotion(player, "good");
+                    room->broadcastInvoke("playAudio", objectName());
 
                     return true;
                 }else
@@ -474,10 +493,12 @@ public:
     }
 };
 
+
+
 EightDiagram::EightDiagram(Suit suit, int number)
     :Armor(suit, number){
     setObjectName("eight_diagram");
-    skill = new EightDiagramSkill;
+    skill = EightDiagramSkill::GetInstance();
 }
 
 AmazingGrace::AmazingGrace(Suit suit, int number)
@@ -554,7 +575,9 @@ SavageAssault::SavageAssault(Suit suit, int number)
 void SavageAssault::onEffect(const CardEffectStruct &effect) const{
     Room *room = effect.to->getRoom();
     const Card *slash = room->askForCard(effect.to, "slash", "savage-assault-slash:" + effect.from->objectName());
-    if(slash == NULL){
+    if(slash)
+        room->setEmotion(effect.to, "killer");
+    else{
         DamageStruct damage;
         damage.card = this;
         damage.damage = 1;
@@ -575,7 +598,9 @@ ArcheryAttack::ArcheryAttack(Card::Suit suit, int number)
 void ArcheryAttack::onEffect(const CardEffectStruct &effect) const{
     Room *room = effect.to->getRoom();
     const Card *jink = room->askForCard(effect.to, "jink", "archery-attack-jink:" + effect.from->objectName());
-    if(jink == NULL){
+    if(jink)
+        room->setEmotion(effect.to, "jink");
+    else{
         DamageStruct damage;
         damage.card = this;
         damage.damage = 1;
@@ -612,9 +637,8 @@ Collateral::Collateral(Card::Suit suit, int number)
 }
 
 bool Collateral::isAvailable(const Player *player) const{
-    QList<const Player*> players = player->parent()->findChildren<const Player *>();
-    foreach(const Player *p, players){
-        if(p->getWeapon() != NULL && p != player)
+    foreach(const Player *p, player->getSiblings()){
+        if(p->getWeapon() && p->isAlive())
             return true;
     }
 
@@ -642,7 +666,9 @@ void Collateral::use(Room *room, ServerPlayer *source, const QList<ServerPlayer 
     room->throwCard(this);
 
     ServerPlayer *killer = targets.at(0);
-    ServerPlayer *victim = targets.at(1);
+    QList<ServerPlayer *> victims = targets;
+    if(victims.length() > 1)
+        victims.removeAt(0);
     const Weapon *weapon = killer->getWeapon();
 
     if(weapon == NULL)
@@ -651,13 +677,13 @@ void Collateral::use(Room *room, ServerPlayer *source, const QList<ServerPlayer 
     bool on_effect = room->cardEffect(this, source, killer);
     if(on_effect){
         QString prompt = QString("collateral-slash:%1:%2")
-                         .arg(source->objectName()).arg(victim->objectName());
+                         .arg(source->objectName()).arg(victims.first()->objectName());
         const Card *slash = room->askForCard(killer, "slash", prompt);
         if(slash){
             CardUseStruct use;
             use.card = slash;
             use.from = killer;
-            use.to << victim;
+            use.to = victims;
             room->useCard(use);
         }else{
             source->obtainCard(weapon);
@@ -772,6 +798,8 @@ void Snatch::onEffect(const CardEffectStruct &effect) const{
 
     if(room->getCardPlace(card_id) == Player::Hand)
         room->moveCardTo(Sanguosha->getCard(card_id), effect.from, Player::Hand, false);
+    else if(Sanguosha->getCard(card_id)->inherits("Niubi") && effect.from->getState() == "robot")
+        room->throwCard(card_id);
     else
         room->obtainCard(effect.from, card_id);
 }
@@ -807,6 +835,12 @@ void Dismantlement::onEffect(const CardEffectStruct &effect) const{
     log.from = effect.to;
     log.card_str = QString::number(card_id);
     room->sendLog(log);
+
+    if(effect.from->hasArmorEffect("urban") && effect.from->hasSkill("qixi") && effect.card->getSuit() == Card::Club){
+        bool result = effect.from->getState() != "robot" ? room->askForSkillInvoke(effect.from, "urban") : true;
+        if(result)
+            room->obtainCard(effect.from, card_id);
+    }
 }
 
 Indulgence::Indulgence(Suit suit, int number)
@@ -835,6 +869,8 @@ bool Indulgence::targetFilter(const QList<const Player *> &targets, const Player
 }
 
 void Indulgence::takeEffect(ServerPlayer *target) const{
+    if(target->hasArmorEffect("stimulant") && target->hasSkill("jianxiong"))
+        return;
     target->skip(Player::Play);
 }
 
@@ -1037,6 +1073,8 @@ StandardCardPackage::StandardCardPackage()
 
           << new EightDiagram(Card::Spade)
           << new EightDiagram(Card::Club);
+
+    skills << EightDiagramSkill::GetInstance();
 
     {
         QList<Card *> horses;

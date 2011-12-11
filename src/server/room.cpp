@@ -22,9 +22,9 @@
 #include <QDateTime>
 
 Room::Room(QObject *parent, const QString &mode)
-    :QThread(parent), mode(mode), owner(NULL), current(NULL), reply_player(NULL), pile1(Sanguosha->getRandomCards()),
+    :QThread(parent), mode(mode), current(NULL), reply_player(NULL), pile1(Sanguosha->getRandomCards()),
     draw_pile(&pile1), discard_pile(&pile2),
-    game_started(false), game_finished(false), signup_count(0),
+    game_started(false), game_finished(false),
     L(NULL), thread(NULL), thread_3v3(NULL), sem(new QSemaphore), provided(NULL), _virtual(false)
 {
     player_count = Sanguosha->getPlayerCount(mode);
@@ -52,6 +52,7 @@ void Room::initCallbacks(){
     callbacks["replyGongxinCommand"] = &Room::commonCommand;
     callbacks["assignRolesCommand"] = &Room::commonCommand;
 
+    callbacks["toggleReadyCommand"] = &Room::toggleReadyCommand;
     callbacks["addRobotCommand"] = &Room::addRobotCommand;
     callbacks["fillRobotsCommand"] = &Room::fillRobotsCommand;
     callbacks["chooseCommand"] = &Room::chooseCommand;
@@ -114,6 +115,10 @@ QList<ServerPlayer *> Room::getOtherPlayers(ServerPlayer *except) const{
         other_players << alive_players.at(i);
 
     return other_players;
+}
+
+QList<ServerPlayer *> Room::getPlayers() const{
+    return players ;
 }
 
 QList<ServerPlayer *> Room::getAllPlayers() const{
@@ -181,6 +186,32 @@ void Room::revivePlayer(ServerPlayer *player){
     }
 
     broadcastInvoke("revivePlayer", player->objectName());
+    updateStateItem();
+}
+
+static bool CompareByRole(ServerPlayer *player1, ServerPlayer *player2){
+    int role1 = player1->getRoleEnum();
+    int role2 = player2->getRoleEnum();
+
+    if(role1 != role2)
+        return role1 < role2;
+    else
+        return player1->isAlive();
+}
+
+void Room::updateStateItem(){
+    QList<ServerPlayer *> players = this->players;
+    qSort(players.begin(), players.end(), CompareByRole);
+    QString roles;
+    foreach(ServerPlayer *p, players){
+        QChar c = "ZCFN"[p->getRoleEnum()];
+        if(p->isDead())
+            c = c.toLower();
+
+        roles.append(c);
+    }
+
+    broadcastInvoke("updateStateItem", roles);
 }
 
 void Room::killPlayer(ServerPlayer *victim, DamageStruct *reason){
@@ -194,6 +225,7 @@ void Room::killPlayer(ServerPlayer *victim, DamageStruct *reason){
 
     broadcastProperty(victim, "role");
     broadcastInvoke("killPlayer", victim->objectName());
+
 
     int index = alive_players.indexOf(victim);
     int i;
@@ -209,6 +241,8 @@ void Room::killPlayer(ServerPlayer *victim, DamageStruct *reason){
     log.to << victim;
     log.arg = victim->getRole();
     log.from = killer;
+
+    updateStateItem();
 
     if(killer){
         if(killer == victim)
@@ -359,8 +393,10 @@ void Room::slashResult(const SlashEffectStruct &effect, const Card *jink){
 
     if(jink == NULL)
         thread->trigger(SlashHit, effect.from, data);
-    else
+    else{
+        setEmotion(effect.to, "jink");
         thread->trigger(SlashMissed, effect.from, data);
+    }
 }
 
 void Room::attachSkillToPlayer(ServerPlayer *player, const QString &skill_name){
@@ -408,7 +444,12 @@ bool Room::askForSkillInvoke(ServerPlayer *player, const QString &skill_name, co
         thread->delay(Config.AIDelay);
         invoked = ai->askForSkillInvoke(skill_name, data);
     }else{
-        player->invoke("askForSkillInvoke", skill_name);
+        QString invoke_str;
+        if(data.type() == QVariant::String)
+            invoke_str = QString("%1:%2").arg(skill_name).arg(data.toString());
+        else
+            invoke_str = skill_name;
+        player->invoke("askForSkillInvoke", invoke_str);
         getResult("invokeSkillCommand", player);
 
         if(result.isEmpty())
@@ -847,9 +888,8 @@ ServerPlayer *Room::addSocket(ClientSocket *socket){
     return player;
 }
 
-bool Room::isFull() const
-{
-    return signup_count == player_count;
+bool Room::isFull() const{
+    return players.length() == player_count;
 }
 
 bool Room::isFinished() const{
@@ -1109,29 +1149,32 @@ void Room::prepareForStart(){
                 player->setRole("rebel");
             broadcastProperty(player, "role");
         }
-    }else if(Config.value("FreeAssign", false).toBool() && owner->getState() == "online"){
-        owner->invoke("askForAssign");
-        getResult("assignRolesCommand", owner);
+    }else if(Config.value("FreeAssign", false).toBool()){
+        ServerPlayer *owner = getOwner();
+        if(owner && owner->getState() == "online"){
+            owner->invoke("askForAssign");
+            getResult("assignRolesCommand", owner);
 
-        if(result.isEmpty() || result == ".")
-            assignRoles();
-        else{
-            QStringList assignments = result.split("+");
-            for(int i=0; i<assignments.length(); i++){
-                QString assignment = assignments.at(i);
-                QStringList texts = assignment.split(":");
-                QString name = texts.value(0);
-                QString role = texts.value(1);
+            if(result.isEmpty() || result == ".")
+                assignRoles();
+            else{
+                QStringList assignments = result.split("+");
+                for(int i=0; i<assignments.length(); i++){
+                    QString assignment = assignments.at(i);
+                    QStringList texts = assignment.split(":");
+                    QString name = texts.value(0);
+                    QString role = texts.value(1);
 
-                ServerPlayer *player = findChild<ServerPlayer *>(name);
-                setPlayerProperty(player, "role", role);
+                    ServerPlayer *player = findChild<ServerPlayer *>(name);
+                    setPlayerProperty(player, "role", role);
 
-                players.swap(i, players.indexOf(player));
+                    players.swap(i, players.indexOf(player));
+                }
             }
-        }
-    }else{
+        }else
+            assignRoles();
+    }else
         assignRoles();
-    }
 
     adjustSeats();
 }
@@ -1160,7 +1203,7 @@ void Room::reportDisconnection(){
         players.removeOne(player);
     }else if(player->getRole().isEmpty()){
         // second case
-        if(signup_count < player_count){
+        if(players.length() < player_count){
             player->setParent(NULL);
             players.removeOne(player);
 
@@ -1171,7 +1214,6 @@ void Room::reportDisconnection(){
             }
 
             broadcastInvoke("removePlayer", player->objectName());
-            signup_count --;
         }
     }else{
         if(!game_started){
@@ -1209,11 +1251,9 @@ void Room::reportDisconnection(){
         }
     }
 
-    if(player == owner){
-        owner = NULL;
+    if(player->isOwner()){
         foreach(ServerPlayer *p, players){
             if(p->getState() == "online"){
-                owner = p;
                 p->setOwner(true);
                 broadcastProperty(p, "owner");
                 break;
@@ -1281,7 +1321,7 @@ void Room::processRequest(const QString &request){
 }
 
 void Room::addRobotCommand(ServerPlayer *player, const QString &){
-    if(player && player != owner)
+    if(player && !player->isOwner())
         return;
 
     if(isFull())
@@ -1309,9 +1349,42 @@ void Room::addRobotCommand(ServerPlayer *player, const QString &){
 }
 
 void Room::fillRobotsCommand(ServerPlayer *player, const QString &){
-    int left = player_count - signup_count, i;
-    for(i=0; i<left; i++){
+    int left = player_count - players.length();
+    for(int i=0; i<left; i++){
         addRobotCommand(player, QString());
+    }
+}
+
+ServerPlayer *Room::getOwner() const{
+    foreach(ServerPlayer *player, players){
+        if(player->isOwner())
+            return player;
+    }
+
+    return NULL;
+}
+
+void Room::toggleReadyCommand(ServerPlayer *player, const QString &){
+    if(game_started)
+        return;
+
+    setPlayerProperty(player, "ready", ! player->isReady());
+
+    if(player->isReady() && isFull()){
+        bool allReady = true;
+        foreach(ServerPlayer *player, players){
+            if(!player->isReady()){
+                allReady = false;
+                break;
+            }
+        }
+
+        if(allReady){
+            foreach(ServerPlayer *player, players)
+                setPlayerProperty(player, "ready", false);
+
+            start();
+        }
     }
 }
 
@@ -1326,8 +1399,8 @@ void Room::signup(ServerPlayer *player, const QString &screen_name, const QStrin
     if(!is_robot){
         player->sendProperty("objectName");
 
+        ServerPlayer *owner = getOwner();
         if(owner == NULL){
-            owner = player;
             player->setOwner(true);
             broadcastProperty(player, "owner");
         }
@@ -1346,12 +1419,8 @@ void Room::signup(ServerPlayer *player, const QString &screen_name, const QStrin
             if(p != player)
                 p->introduceTo(player);
         }
-    }
-
-    signup_count ++;
-
-    if(isFull())
-        start();
+    }else
+        toggleReadyCommand(player, QString());
 }
 
 void Room::assignGeneralsForPlayers(const QList<ServerPlayer *> &to_assign){
@@ -1470,8 +1539,7 @@ void Room::run(){
             names << general->objectName();
         }
 
-        names.removeOne("wuxingzhuge");
-        names.removeOne("zhibasunquan");
+        names.removeOne("yuji");
 
         foreach(ServerPlayer *player, players){
             if(player == lord)
@@ -1824,8 +1892,6 @@ void Room::marshal(ServerPlayer *player){
             p->introduceTo(player);
     }
 
-
-
     QStringList player_circle;
     foreach(ServerPlayer *player, players)
         player_circle << player->objectName();
@@ -1942,6 +2008,8 @@ void Room::startGame(){
         game_rule = new BossMode(this);
     else if(mode == "04_1v3")
         game_rule = new HulaoPassMode(this);
+    else if(mode == "08raw")
+        game_rule = new RunawayMode(this);
     else if(Config.EnableScene)	//changjing
         game_rule = new SceneRule(this);	//changjing
     else
@@ -1967,6 +2035,10 @@ void Room::broadcastProperty(ServerPlayer *player, const char *property_name, co
 }
 
 void Room::drawCards(ServerPlayer *player, int n){
+    QVariant drawdata = n;
+    thread->trigger(ToDrawNCards, player, drawdata);
+    n = drawdata.toInt();
+
     if(n <= 0)
         return;
 
@@ -2256,7 +2328,8 @@ void Room::acquireSkill(ServerPlayer *player, const Skill *skill, bool open){
         }
 
         foreach(const Skill *related_skill, Sanguosha->getRelatedSkills(skill_name)){
-            acquireSkill(player, related_skill);
+            if(!related_skill->isVisible())
+                acquireSkill(player, related_skill);
         }
     }
 }
@@ -3048,4 +3121,214 @@ Room* Room::duplicate()
     room->fillRobotsCommand(NULL, 0);
     room->copyFrom(this);
     return room;
+}
+
+void Room::niubiMoveout(const QString result){
+
+    QMutableListIterator<int > itor(*draw_pile);
+    while(itor.hasNext()){
+        itor.next();
+        const Card *card = Sanguosha->getCard(itor.value());
+        bool f = false;
+        if(card->inherits("Niubi")){
+            foreach(ServerPlayer *p, getAllPlayers()){
+                if(
+                   (result == "player"
+                    && getNiubiOwner(card->objectName()) == p->getGeneralName()) ||
+                   (result == "player2"
+                    && (getNiubiOwner(card->objectName()) == p->getGeneralName() ||
+                    getNiubiOwner(card->objectName()) == p->getGeneral2Name())) ||
+                   (result == "package"
+                    && getNiubiOwner(card->objectName(), 2) == p->getGeneral()->getPackage())){
+                    f = true;
+                    break;
+                }
+            }
+            if(!f)
+                itor.remove();
+        }
+    }
+    /*
+    foreach(int card_id, *draw_pile){
+        const Card *card = Sanguosha->getCard(card_id);
+        bool f = false;
+        if(card->inherits("Niubi")){
+            foreach(ServerPlayer *p, getAllPlayers()){
+                if(
+                   (result == "player"
+                    && getNiubiOwner(card->objectName()) == p->getGeneralName()) ||
+                   (result == "player2"
+                    && (getNiubiOwner(card->objectName()) == p->getGeneralName() ||
+                    getNiubiOwner(card->objectName()) == p->getGeneral2Name())) ||
+                   (result == "package"
+                    && getNiubiOwner(card->objectName(), 2) == p->getGeneral()->getPackage())){
+                    f = true;
+                    break;
+                }
+            }
+            if(!f)
+                draw_pile->removeOne(card_id);
+                //player->addToPile("nb",card_id);
+        }
+    }*/
+}
+
+QString Room::getNiubiOwner(QString armor, int option){
+    QMap<QString, QString> map;
+
+    //standard
+    map["corrfluid"] = "simayi";
+    map["stimulant"] = "caocao";
+    map["madamfeng"] = "huangyueying";
+    map["harley"] = "machao";
+    map["telescope"] = "zhugeliang";
+    map["flashlight"] = "zhangliao";
+    map["warmbaby"] = "xuchu";
+    map["linctus"] = "guojia";
+    map["towel"] = "lumeng";
+    map["lubricatingoil"] = "xiahoudun";
+    map["underwear"] = "daqiao";
+    map["whip"] = "huanggai";
+    map["eyedrops"] = "liubei";
+    map["urban"] = "ganning";
+    map["redsunglasses"] = "guanyu";
+    map["brainplatinum"] = "sunquan";
+    map["sophie"] = "zhenji";
+    map["yaiba"] = "diaochan";
+    map["banana"] = "zhaoyun";
+    map["speakers"] = "zhangfei";
+    map["cologne"] = "zhouyu";
+    map["dustbin"] = "luxun";
+    map["animals"] = "lubu";
+    map["deathrisk"] = "huatuo"; //cannot saveself
+    map["rollingpin"] = "sunshangxiang";
+
+    //wind
+    map["saw"] = "zhangjiao";
+    map["amazonston"] = "huangzhong";
+    map["gnat"] = "caoren";
+    map["magicwand"] = "yuji";
+    map["chanel5"] = "xiaoqiao";
+    map["landrover"] = "xiahouyuan";
+    map["chiropter"] = "weiyan";
+    map["drum"] = "zhoutai";
+
+    //thicket
+    map["hydrogen"] = "caopi";
+    map["tranqgun"] = "xuhuang";
+    map["ghostcar"] = "sunjian";
+    map["snake"] = "lusu";
+    map["voodoo"] = "jiaxu";
+    map["tombstone"] = "dongzhuo";
+    map["snapshot"] = "menghuo";
+    map["fuckav"] = "zhurong";
+
+    //fire
+    map["switchbd"] = "wolong";
+    map["reijyutsu"] = "pangtong";
+    map["apple"] = "taishici";
+    map["goldlock"] = "yuanshao";
+    map["tanbi"] = "shuangxiong";
+    map["sansyouuo"] = "dianwei";
+    map["flack"] = "xunyu";
+    map["coffinlid"] = "pangde";
+
+    //mountain
+    map["nunchaku"] = "zhanghe";
+    map["ruan"] = "caiwenji";
+    map["globe"] = "erzhang";
+    map["wookon"] = "dengai";
+    map["greatmug"] = "jiangwei";
+    map["goooo"] = "zuoci";
+    map["hundan"] = "sunce";
+    map["tizanidine"] = "liushan";
+
+    //sp
+    map["nailclippers"] = "yangxiu";
+    map["morin_khuur"] = "gongsunzan";
+    map["greatchair"] = "yuanshu";
+
+    //YJCM
+    map["hawksbill"] = "yujin";
+    map["torture"] = "xushu";
+    map["rotate"] = "lingtong";
+    map["totocar"] = "chengong";
+    map["ch3oh"] = "caozhi";
+    map["teardan"] = "masu";
+    map["nanafist"] = "xusheng";
+    map["lrzt9hh"] = "gaoshun";
+    map["mushroom"] = "fazheng";
+    map["aofrog"] = "wuguotai";
+    map["coptis"] = "chunhua";
+
+    switch(option){
+        case 1: return map.value(armor, QString());
+        case 2: return Sanguosha->getGeneral(map.value(armor, QString()))->getPackage();
+        case 3: return map.key(armor, QString());
+        default: return "";
+    }
+
+/*
+    //option = 1 return general-name, other(for example 2) return package-name
+    if(cardname == "corrfluid") return option == 1 ? "simayi" : "standard";
+    else if(cardname == "stimulant") return option == 1 ? "caocao" : "standard";
+    else if(cardname == "madamfeng") return option == 1 ? "huangyueying" : "standard";
+    else if(cardname == "harley") return option == 1 ? "machao" : "standard";
+    else if(cardname == "telescope") return option == 1 ? "zhugeliang" : "standard";
+    else if(cardname == "flashlight") return option == 1 ? "zhangliao" : "standard";
+    else if(cardname == "warmbaby") return option == 1 ? "xuchu" : "standard";
+    else if(cardname == "linctus") return option == 1 ? "guojia" : "standard";
+    else if(cardname == "towel") return option == 1 ? "lumeng" : "standard";
+    else if(cardname == "lubricatingoil") return option == 1 ? "xiahoudun" : "standard";
+    else if(cardname == "underwear") return option == 1 ? "daqiao" : "standard";
+    else if(cardname == "whip") return option == 1 ? "huanggai" : "standard";
+    else if(cardname == "eyedrops") return option == 1 ? "liubei" : "standard";
+    else if(cardname == "urban") return option == 1 ? "ganning" : "standard";
+    else if(cardname == "redsunglasses") return option == 1 ? "guanyu" : "standard";
+    else if(cardname == "brainplatinum") return option == 1 ? "sunquan" : "standard";
+    else if(cardname == "sophie") return option == 1 ? "zhenji" : "standard";
+    else if(cardname == "yaiba") return option == 1 ? "diaochan" : "standard";
+    else if(cardname == "banana") return option == 1 ? "zhaoyun" : "standard";
+    else if(cardname == "speakers") return option == 1 ? "zhangfei" : "standard";
+    else if(cardname == "cologne") return option == 1 ? "zhouyu" : "standard";
+    else if(cardname == "dustbin") return option == 1 ? "luxun" : "standard";
+    else if(cardname == "animals") return option == 1 ? "lubu" : "standard";
+    else if(cardname == "deathrisk") return option == 1 ? "huatuo" : "standard"; //cannot saveself
+    else if(cardname == "rollingpin") return option == 1 ? "sunshangxiang" : "standard";
+    //wind
+    else if(cardname == "saw") return option == 1 ? "zhangjiao" : "wind";
+    else if(cardname == "amazonston") return option == 1 ? "huangzhong" : "wind";
+    else if(cardname == "gnat") return option == 1 ? "caoren" : "wind";
+    else if(cardname == "magicwand") return option == 1 ? "yuji" : "wind";
+    else if(cardname == "chanel5") return option == 1 ? "xiaoqiao" : "wind";
+    else if(cardname == "landrover") return option == 1 ? "xiahouyuan" : "wind";
+    else if(cardname == "chiropter") return option == 1 ? "weiyan" : "wind";
+    else if(cardname == "drum") return option == 1 ? "zhoutai" : "wind";
+    //thicket
+    else if(cardname == "hydrogen") return option == 1 ? "caopi" : "thicket";
+    else if(cardname == "tranqgun") return option == 1 ? "xuhuang" : "thicket";
+    else if(cardname == "ghostcar") return option == 1 ? "sunjian" : "thicket";
+    else if(cardname == "snake") return option == 1 ? "lusu" : "thicket";
+    else if(cardname == "voodoo") return option == 1 ? "jiaxu" : "thicket";
+    else if(cardname == "tombstone") return option == 1 ? "dongzhuo" : "thicket";
+    else if(cardname == "snapshot") return option == 1 ? "menghuo" : "thicket";
+    else if(cardname == "fuckav") return option == 1 ? "zhurong" : "thicket";
+
+    //sp
+    else if(cardname == "morin_khuur") return option == 1 ? "gongsunzan" : "sp";
+    else if(cardname == "greatchair") return option == 1 ? "yuanshu" : "sp";
+    //1j
+    else if(cardname == "hawksbill") return option == 1 ? "yujin" : "YJCM";
+    else if(cardname == "torture") return option == 1 ? "xushu" : "YJCM";
+    else if(cardname == "rotate") return option == 1 ? "lingtong" : "YJCM";
+    else if(cardname == "totocar") return option == 1 ? "chengong" : "YJCM";
+    else if(cardname == "ch3oh") return option == 1 ? "caozhi" : "YJCM";
+    else if(cardname == "teardan") return option == 1 ? "masu" : "YJCM";
+    else if(cardname == "nanafist") return option == 1 ? "xusheng" : "YJCM";
+    else if(cardname == "lrzt9hh") return option == 1 ? "gaoshun" : "YJCM";
+    else if(cardname == "mushroom") return option == 1 ? "fazheng" : "YJCM";
+    else if(cardname == "aofrog") return option == 1 ? "wuguotai" : "YJCM";
+    else if(cardname == "coptis") return option == 1 ? "chunhua" : "YJCM";
+    else return "";
+*/
 }

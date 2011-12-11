@@ -1,10 +1,15 @@
 # -------------------------------------------------
 # Project created by QtCreator 2010-06-13T04:26:52
 # -------------------------------------------------
-TARGET = QSanguosha
+TARGET = NiubiSlash
 QT += network sql
 TEMPLATE = app
 CONFIG += warn_on audio joystick qaxcontainer
+
+macx {
+    CONFIG -= joystick # in Mac, we do not support joystick currently
+}
+
 SOURCES += src/main.cpp \
 	src/client/aux-skills.cpp \
 	src/client/client.cpp \
@@ -29,7 +34,9 @@ SOURCES += src/main.cpp \
 	src/dialog/mainwindow.cpp \
 	src/dialog/packagingeditor.cpp \
 	src/dialog/playercarddialog.cpp \
+	src/dialog/roleassigndialog.cpp \
 	src/dialog/scenario-overview.cpp \
+        src/dialog/halldialog.cpp \
 	src/package/firepackage.cpp \
 	src/package/god.cpp \
 	src/package/joypackage.cpp \
@@ -43,9 +50,11 @@ SOURCES += src/main.cpp \
 	src/package/standard.cpp \
 	src/package/thicket.cpp \
 	src/package/wind.cpp \
-	src/package/wisdom.cpp \
+	src/package/wisdompackage.cpp \
 	src/package/yitianpackage.cpp \
-	src/package/yjcm-package.cpp \
+	src/package/yjcm-package.cpp \	
+	src/package/newbility.cpp \
+	src/package/technology.cpp \
 	src/scenario/boss-mode-scenario.cpp \
 	src/scenario/challengemode.cpp \
 	src/scenario/couple-scenario.cpp \
@@ -70,6 +79,7 @@ SOURCES += src/main.cpp \
 	src/ui/carditem.cpp \
 	src/ui/clientlogbox.cpp \
 	src/ui/dashboard.cpp \
+	src/ui/indicatoritem.cpp \
 	src/ui/photo.cpp \
 	src/ui/pixmap.cpp \
 	src/ui/rolecombobox.cpp \
@@ -78,11 +88,9 @@ SOURCES += src/main.cpp \
 	src/ui/window.cpp \
 	src/util/detector.cpp \
 	src/util/nativesocket.cpp \
-        src/util/recorder.cpp \
-        swig/sanguosha_wrap.cxx \
-    src/ui/indicatoritem.cpp \
-    src/dialog/roleassigndialog.cpp
-	
+	src/util/recorder.cpp \
+	swig/sanguosha_wrap.cxx
+
 HEADERS += src/client/aux-skills.h \
 	src/client/client.h \
 	src/client/clientplayer.h \
@@ -103,9 +111,11 @@ HEADERS += src/client/aux-skills.h \
 	src/dialog/distanceviewdialog.h \
 	src/dialog/generaloverview.h \
 	src/dialog/generalselector.h \
+	src/dialog/halldialog.h \
 	src/dialog/mainwindow.h \
 	src/dialog/packagingeditor.h \
 	src/dialog/playercarddialog.h \
+	src/dialog/roleassigndialog.h \ 
 	src/dialog/scenario-overview.h \
 	src/package/firepackage.h \
 	src/package/god.h \
@@ -120,9 +130,11 @@ HEADERS += src/client/aux-skills.h \
 	src/package/standard.h \
 	src/package/thicket.h \
 	src/package/wind.h \
-	src/package/wisdom.h \
+	src/package/wisdompackage.h \
 	src/package/yitianpackage.h \
 	src/package/yjcm-package.h \
+	src/package/newbility.h \
+	src/package/technology.h \
 	src/scenario/boss-mode-scenario.h \
 	src/scenario/challengemode.h \
 	src/scenario/couple-scenario.h \
@@ -148,6 +160,7 @@ HEADERS += src/client/aux-skills.h \
 	src/ui/carditem.h \
 	src/ui/clientlogbox.h \
 	src/ui/dashboard.h \
+	src/ui/indicatoritem.h \
 	src/ui/photo.h \
 	src/ui/pixmap.h \
 	src/ui/rolecombobox.h \
@@ -157,9 +170,7 @@ HEADERS += src/client/aux-skills.h \
 	src/util/detector.h \
 	src/util/nativesocket.h \
 	src/util/recorder.h \
-	src/util/socket.h \ 
-    src/ui/indicatoritem.h \
-    src/dialog/roleassigndialog.h
+	src/util/socket.h
 	
 FORMS += src/dialog/cardoverview.ui \
 	src/dialog/configdialog.ui \
@@ -183,15 +194,19 @@ win32{
     LIBS += -L. -llua -lm
 }
 
-unix {
+unix:!macx {
     LIBS += -lm -llua
+}
+
+macx {
+    LIBS += -L. -lm -llua5.1
 }
 
 CONFIG(audio){
     DEFINES += AUDIO_SUPPORT
     INCLUDEPATH += include/irrKlang
     win32: LIBS += irrKlang.lib
-    unix: LIBS += -lphonon
+    unix: QT += phonon
 }
 
 CONFIG(joystick){

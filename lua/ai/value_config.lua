@@ -1,6 +1,83 @@
+sgs.dynamic_value = {
+	damage_card = 
+	{
+		Duel = true,
+		ArcheryAttack = true,
+		Slash = true,
+		FireAttack = true,
+		SavageAssault = true,
+		
+		QiangxiCard = true,
+		FanjianCard = true,
+		LijianCard = true,
+		LuanwuCard = true,
+		ShenfenCard = true,
+
+		Poison = true,
+		DiezhiCard = true,
+	},
+	control_usecard = 
+	{
+		Indulgence = true,
+		SupplyShortage = true,
+	},
+	control_card = 
+	{
+		Snatch = true,
+		Dismantlement = true,
+		Collateral = true,
+		
+		GaleShell = true,
+		
+		TianyiCard = true,
+		XianzhenCard = true,
+		DimengCard = true,
+		JixiCard = true,
+		GanluCard = true,
+		QuhuCard = true,
+		ShenfenCard = true,
+
+		Stink = true,
+		Poison = true,
+		Sacrifice = true,
+		ClearShirt = true,
+
+		WookonCard = true,
+		DiezhiCard = true,
+		BaichuCard = true,
+		Niubi = true,
+
+		YuluCard = true,
+		ViewMyWordsCard = true,
+	},
+	lucky_chance = 
+	{
+		Lightning = true,
+	},
+	benefit = 
+	{
+		Peach = true,
+		Analeptic = true,
+		IronChain = true,
+		Exnihilo = true,
+		
+		RendeCard = true,
+		JieyinCard = true,
+		QingnangCard = true,
+		JujianCard = true,
+		ZhihengCard = true,
+
+		Wall = true,
+		Sacrifice = true,
+		JuicePeach = true,
+		RollingpinCard = true,
+		WutianCard = true,
+		Niubi = true,
+	},
+}
+
 sgs.zhangfei_keep_value = 
 {
-Shit = 6,
 Peach = 6,
 Analeptic = 5.8,
 Jink = 5.7,
@@ -12,7 +89,6 @@ ExNihilo = 4.7
 
 sgs.zhaoyun_keep_value = 
 {
-Shit = 6,
 Peach = 6,
 Analeptic = 5.8,
 Jink = 5.7,
@@ -24,7 +100,6 @@ ExNihilo = 4.7
 
 sgs.huangyueying_keep_value = 
 {
-Shit 		= 6,
 Peach 		= 6,
 Analeptic 	= 5.9,
 Jink 		= 5.8,
@@ -42,7 +117,6 @@ FireAttack	=4.9
 
 sgs.xuchu_keep_value = 
 {
-Shit 			= 6,
 Peach 			= 6,
 Analeptic 		= 5.8,
 Jink 			= 5.7,
@@ -61,7 +135,6 @@ DefensiveHorse 	= 4
 
 sgs.sunshangxiang_keep_value = 
 {
-Shit = 6,
 Peach = 6,
 Jink = 5.1,
 Crossbow = 5,
@@ -82,7 +155,6 @@ OffensiveHorse = 5
 
 sgs.xiahouyuan_keep_value = 
 {
-Shit = 6,
 Peach = 6,
 Jink = 5.1,
 Crossbow = 5,
@@ -101,7 +173,18 @@ DefensiveHorse = 5,
 OffensiveHorse = 5
 }
 
+sgs.shenzhaoyun_suit_value = 
+{
+heart = 6.7,
+spade = 5,
+club = 4.2,
+diamond = 3.9,
+}
 
+sgs.dongzhuo_suit_value = 
+{
+spade = 5,
+}
 
 sgs.xiaoqiao_suit_value = 
 {

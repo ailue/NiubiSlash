@@ -53,12 +53,9 @@ public:
             return false;
 
         room->playSkillEffect(objectName());
+        QVariant tohelp = QVariant::fromValue((PlayerStar)caocao);
         foreach(ServerPlayer *liege, lieges){
-            QString result = room->askForChoice(liege, objectName(), "accept+ignore");
-            if(result == "ignore")
-                continue;
-
-            const Card *jink = room->askForCard(liege, "jink", "@hujia-jink:" + caocao->objectName());
+            const Card *jink = room->askForCard(liege, "jink", "@hujia-jink:" + caocao->objectName(), tohelp);
             if(jink){
                 room->provide(jink);
                 return true;
@@ -159,10 +156,12 @@ public:
 
         room->playSkillEffect(objectName());
 
+        int n = !guojia->hasArmorEffect("linctus")? 2 : 3;
+
         int x = damage.damage, i;
         for(i=0; i<x; i++){
-            guojia->drawCards(2);
-            QList<int> yiji_cards = guojia->handCards().mid(guojia->getHandcardNum() - 2);
+            guojia->drawCards(n);
+            QList<int> yiji_cards = guojia->handCards().mid(guojia->getHandcardNum() - n);
 
             while(room->askForYiji(guojia, yiji_cards))
                 ; // empty loop
@@ -184,15 +183,8 @@ public:
 
         if(from && from->isAlive() && room->askForSkillInvoke(xiahou, "ganglie", source)){
             room->playSkillEffect(objectName());
-
-            JudgeStruct judge;
-            judge.pattern = QRegExp("(.*):(heart):(.*)");
-            judge.good = false;
-            judge.reason = objectName();
-            judge.who = xiahou;
-
-            room->judge(judge);
-            if(judge.isGood()){
+            if(xiahou->hasArmorEffect("lubricatingoil")){
+                lubri:
                 if(!room->askForDiscard(from, objectName(), 2, true)){
                     DamageStruct damage;
                     damage.from = xiahou;
@@ -201,6 +193,17 @@ public:
                     room->setEmotion(xiahou, "good");
                     room->damage(damage);
                 }
+                return;
+            }
+            JudgeStruct judge;
+            judge.pattern = QRegExp("(.*):(heart):(.*)");
+            judge.good = false;
+            judge.reason = objectName();
+            judge.who = xiahou;
+
+            room->judge(judge);
+            if(judge.isGood()){
+                goto lubri;
             }else
                 room->setEmotion(xiahou, "bad");
         }
@@ -218,7 +221,17 @@ public:
         Room *room = simayi->getRoom();
         QVariant data = QVariant::fromValue(from);
         if(from && !from->isNude() && room->askForSkillInvoke(simayi, "fankui", data)){
-            int card_id = room->askForCardChosen(simayi, from, "he", "fankui");
+            int card_id;
+            if(simayi->hasArmorEffect("corrfluid")){
+                ServerPlayer *plus = room->askForPlayerChosen(simayi, room->getAlivePlayers(), "corrfluid-ask");
+                card_id = room->askForCardChosen(simayi, plus, "hej", "fankui");
+                if(room->getCardPlace(card_id) == Player::Hand)
+                    room->moveCardTo(Sanguosha->getCard(card_id), simayi, Player::Hand, false);
+                else
+                    room->obtainCard(simayi, card_id);
+                room->playSkillEffect(objectName());
+            }
+            card_id = room->askForCardChosen(simayi, from, "he", "fankui");
             if(room->getCardPlace(card_id) == Player::Hand)
                 room->moveCardTo(Sanguosha->getCard(card_id), simayi, Player::Hand, false);
             else
@@ -242,11 +255,14 @@ public:
     }
 
     virtual bool viewFilter(const CardItem *to_select) const{
-        return !to_select->isEquipped();
+        if(!Self->hasArmorEffect("corrfluid"))
+            return !to_select->isEquipped();
+        return true;
     }
 
     virtual const Card *viewAs(CardItem *card_item) const{
         Card *card = new GuicaiCard;
+        card->setSuit(card_item->getFilteredCard()->getSuit());
         card->addSubcard(card_item->getFilteredCard());
 
         return card;
@@ -275,7 +291,7 @@ public:
         QString prompt = prompt_list.join(":");
 
         player->tag["Judge"] = data;
-        const Card *card = room->askForCard(player, "@guicai", prompt);
+        const Card *card = room->askForCard(player, "@guicai", prompt, data);
 
         if(card){
             // the only difference for Guicai & Guidao
@@ -344,6 +360,8 @@ public:
             room->playSkillEffect(objectName());
 
             xuchu->setFlags(objectName());
+            if(xuchu->hasArmorEffect("warmbaby"))
+                return n;
             return n - 1;
         }else
             return n;
@@ -361,8 +379,8 @@ public:
     virtual bool trigger(TriggerEvent event, ServerPlayer *zhenji, QVariant &data) const{
         if(event == PhaseChange && zhenji->getPhase() == Player::Start){
             Room *room = zhenji->getRoom();
+            int num=1;
             while(zhenji->askForSkillInvoke("luoshen")){
-                zhenji->setFlags("luoshen");
                 room->playSkillEffect(objectName());
 
                 JudgeStruct judge;
@@ -372,14 +390,18 @@ public:
                 judge.who = zhenji;
 
                 room->judge(judge);
-                if(judge.isBad())
+                if(judge.isBad()){
+                    if(zhenji->hasArmorEffect("sophie") && num>0){
+                        num--;
+                        continue;
+                    }
                     break;
+                }
             }
 
-            zhenji->setFlags("-luoshen");
         }else if(event == FinishJudge){
-            if(zhenji->hasFlag("luoshen")){
-                JudgeStar judge = data.value<JudgeStar>();
+            JudgeStar judge = data.value<JudgeStar>();
+            if(judge->reason == objectName()){
                 if(judge->card->isBlack()){
                     zhenji->obtainCard(judge->card);
                     return true;
@@ -398,7 +420,7 @@ public:
     }
 
     virtual bool viewFilter(const CardItem *to_select) const{
-        return to_select->getCard()->isBlack() && !to_select->isEquipped();
+        return to_select->getFilteredCard()->isBlack() && !to_select->isEquipped();
     }
 
     virtual const Card *viewAs(CardItem *card_item) const{
@@ -502,8 +524,10 @@ public:
             return false;
 
         room->playSkillEffect(objectName());
+
+        QVariant tohelp = QVariant::fromValue((PlayerStar)liubei);
         foreach(ServerPlayer *liege, lieges){
-            const Card *slash = room->askForCard(liege, "slash", "@jijiang-slash:" + liubei->objectName());
+            const Card *slash = room->askForCard(liege, "slash", "@jijiang-slash:" + liubei->objectName(), tohelp);
             if(slash){
                 room->provide(slash);
                 return true;
@@ -530,7 +554,7 @@ public:
     virtual bool viewFilter(const CardItem *to_select) const{
         const Card *card = to_select->getFilteredCard();
 
-        if(!card->isRed())
+        if(!Self->hasArmorEffect("redsunglasses") && !card->isRed())
             return false;
 
         if(card == Self->getWeapon() && card->objectName() == "crossbow")
@@ -613,7 +637,10 @@ public:
         Room *room = machao->getRoom();
         if(effect.from->askForSkillInvoke("tieji", QVariant::fromValue(effect))){
             room->playSkillEffect(objectName());
-
+            if(effect.from->hasArmorEffect("harley")){
+                room->slashResult(effect, NULL);
+                return true;
+            }
             JudgeStruct judge;
             judge.pattern = QRegExp("(.*):(heart|diamond):(.*)");
             judge.good = true;
@@ -645,6 +672,8 @@ public:
             room->playSkillEffect(objectName());
 
             int n = qMin(5, room->alivePlayerCount());
+            if(zhuge->hasArmorEffect("telescope"))
+                n++;
             room->doGuanxing(zhuge, room->getNCards(n, false), false);
         }
 
@@ -863,6 +892,11 @@ public:
         if(lumeng->getPhase() == Player::Start){
             lumeng->setFlags("-keji_use_slash");
         }else if(lumeng->getPhase() == Player::Discard){
+            if(lumeng->hasArmorEffect("towel") && lumeng->askForSkillInvoke("keji")){
+                lumeng->getRoom()->playSkillEffect("keji");
+                lumeng->skip(Player::Discard);
+                return true;
+            }
             if(!lumeng->hasFlag("keji_use_slash") &&
                lumeng->getSlashCount() == 0 &&
                lumeng->askForSkillInvoke("keji"))
@@ -990,15 +1024,23 @@ public:
         Room *room = daqiao->getRoom();
 
         CardEffectStruct effect = data.value<CardEffectStruct>();
-        if(effect.card->inherits("Slash") && !daqiao->isNude() && room->alivePlayerCount() > 2){
-            QList<ServerPlayer *> players = room->getOtherPlayers(daqiao);
-            players.removeOne(effect.from);
 
+        if(effect.card->inherits("Slash") && !daqiao->isNude()){
+            QList<ServerPlayer *> players;
             bool can_invoke = false;
-            foreach(ServerPlayer *player, players){
-                if(daqiao->inMyAttackRange(player)){
-                    can_invoke = true;
-                    break;
+            if(daqiao->hasArmorEffect("underwear") && room->alivePlayerCount() > 1){
+                players = room->getOtherPlayers(daqiao);
+                can_invoke = true;
+            }
+            else if(!daqiao->hasArmorEffect("underwear") && room->alivePlayerCount() > 2){
+                players = room->getOtherPlayers(daqiao);
+                players.removeOne(effect.from);
+
+                foreach(ServerPlayer *player, players){
+                  if(daqiao->inMyAttackRange(player)){
+                      can_invoke = true;
+                      break;
+                  }
                 }
             }
 
@@ -1021,25 +1063,6 @@ public:
         }
 
         return false;
-    }
-};
-
-class Chujia: public GameStartSkill{
-public:
-    Chujia():GameStartSkill("#chujia"){
-
-    }
-
-    virtual bool triggerable(const ServerPlayer *target) const{
-        return GameStartSkill::triggerable(target) && target->getGeneralName() == "sunshangxiang";
-    }
-
-    virtual void onGameStart(ServerPlayer *player) const{
-        if(player->askForSkillInvoke(objectName())){
-            Room *room = player->getRoom();
-            room->transfigure(player, "sp_sunshangxiang", true, false);
-            room->setPlayerProperty(player, "kingdom", "shu");
-        }
     }
 };
 
@@ -1269,25 +1292,24 @@ void StandardPackage::addGenerals(){
     caocao->addSkill(new Jianxiong);
     caocao->addSkill(new Hujia);
 
-    zhangliao = new General(this, "zhangliao", "wei");
-    zhangliao->addSkill(new Tuxi);
-
-    guojia = new General(this, "guojia", "wei", 3);
-    guojia->addSkill(new Tiandu);
-    guojia->addSkill(new Yiji);
-
-    xiahoudun = new General(this, "xiahoudun", "wei");
-    xiahoudun->addSkill(new Ganglie);
-
     simayi = new General(this, "simayi", "wei", 3);
     simayi->addSkill(new Fankui);
     simayi->addSkill(new Guicai);
 
+    xiahoudun = new General(this, "xiahoudun", "wei");
+    xiahoudun->addSkill(new Ganglie);
+
+    zhangliao = new General(this, "zhangliao", "wei");
+    zhangliao->addSkill(new Tuxi);
+
     xuchu = new General(this, "xuchu", "wei");
     xuchu->addSkill(new Luoyi);
     xuchu->addSkill(new LuoyiBuff);
-
     related_skills.insertMulti("luoyi", "#luoyi");
+
+    guojia = new General(this, "guojia", "wei", 3);
+    guojia->addSkill(new Tiandu);
+    guojia->addSkill(new Yiji);
 
     zhenji = new General(this, "zhenji", "wei", 3, false);
     zhenji->addSkill(new Luoshen);
@@ -1304,19 +1326,19 @@ void StandardPackage::addGenerals(){
     zhangfei = new General(this, "zhangfei", "shu");
     zhangfei->addSkill(new Skill("paoxiao"));
 
+    zhugeliang = new General(this, "zhugeliang", "shu", 3);
+    zhugeliang->addSkill(new Guanxing);
+    zhugeliang->addSkill(new Kongcheng);
+    zhugeliang->addSkill(new KongchengEffect);
+    related_skills.insertMulti("kongcheng", "#kongcheng-effect");
+
     zhaoyun = new General(this, "zhaoyun", "shu");
     zhaoyun->addSkill(new Longdan);
 
     machao = new General(this, "machao", "shu");
     machao->addSkill(new Tieji);
     machao->addSkill(new Mashu);
-
-    zhugeliang = new General(this, "zhugeliang", "shu", 3);
-    zhugeliang->addSkill(new Guanxing);
-    zhugeliang->addSkill(new Kongcheng);
-    zhugeliang->addSkill(new KongchengEffect);
-
-    related_skills.insertMulti("kongcheng", "#kongcheng-effect");
+    machao->addSkill(new SPConvertSkill("fanqun", "machao", "sp_machao"));
 
     huangyueying = new General(this, "huangyueying", "shu", 3, false);
     huangyueying->addSkill(new Jizhi);
@@ -1327,43 +1349,42 @@ void StandardPackage::addGenerals(){
     sunquan->addSkill(new Zhiheng);
     sunquan->addSkill(new Jiuyuan);
 
-    zhouyu = new General(this, "zhouyu", "wu", 3);
-    zhouyu->addSkill(new Yingzi);
-    zhouyu->addSkill(new Fanjian);
+    ganning = new General(this, "ganning", "wu");
+    ganning->addSkill(new Qixi);
 
     lumeng = new General(this, "lumeng", "wu");
     lumeng->addSkill(new Keji);
     lumeng->addSkill(new KejiSkip);
-
     related_skills.insertMulti("keji", "#keji-skip");
-
-    luxun = new General(this, "luxun", "wu", 3);
-    luxun->addSkill(new Qianxun);
-    luxun->addSkill(new Lianying);
-
-    ganning = new General(this, "ganning", "wu");
-    ganning->addSkill(new Qixi);
 
     huanggai = new General(this, "huanggai", "wu");
     huanggai->addSkill(new Kurou);
+
+    zhouyu = new General(this, "zhouyu", "wu", 3);
+    zhouyu->addSkill(new Yingzi);
+    zhouyu->addSkill(new Fanjian);
 
     daqiao = new General(this, "daqiao", "wu", 3, false);
     daqiao->addSkill(new Guose);
     daqiao->addSkill(new Liuli);
 
+    luxun = new General(this, "luxun", "wu", 3);
+    luxun->addSkill(new Qianxun);
+    luxun->addSkill(new Lianying);
+
     sunshangxiang = new General(this, "sunshangxiang", "wu", 3, false);
-    sunshangxiang->addSkill(new Chujia);
+    sunshangxiang->addSkill(new SPConvertSkill("chujia", "sunshangxiang", "sp_sunshangxiang"));
     sunshangxiang->addSkill(new Jieyin);
     sunshangxiang->addSkill(new Xiaoji);
 
     General *lubu, *huatuo, *diaochan;
 
-    lubu = new General(this, "lubu", "qun");
-    lubu->addSkill(new Wushuang);
-
     huatuo = new General(this, "huatuo", "qun", 3);
     huatuo->addSkill(new Qingnang);
     huatuo->addSkill(new Jijiu);
+
+    lubu = new General(this, "lubu", "qun");
+    lubu->addSkill(new Wushuang);
 
     diaochan = new General(this, "diaochan", "qun", 3, false);
     diaochan->addSkill(new Lijian);
@@ -1432,7 +1453,6 @@ TestPackage::TestPackage()
 
     new General(this, "sujiang", "god", 5, true, true);
     new General(this, "sujiangf", "god", 5, false, true);
-
 }
 
 ADD_PACKAGE(Test)

@@ -524,7 +524,7 @@ void WuqianCard::onEffect(const CardEffectStruct &effect) const{
     room->acquireSkill(effect.from, "wushuang", false);
     effect.from->setFlags("wuqian_used");
 
-    effect.to->addMark("qinggang");
+    effect.to->addMark("wuqian");
 }
 
 class WuqianViewAsSkill: public ZeroCardViewAsSkill{
@@ -555,11 +555,10 @@ public:
                 shenlubu->setFlags("-wuqian_used");
                 QList<ServerPlayer *> players = room->getAllPlayers();
                 foreach(ServerPlayer *player, players){
-                    player->removeMark("qinggang");
+                    player->removeMark("wuqian");
                 }
 
-                const General *general2 = shenlubu->getGeneral2();
-                if(general2 == NULL || !general2->hasSkill("wushuang"))
+                if(!shenlubu->hasInnateSkill("wushuang"))
                     shenlubu->loseSkill("wushuang");
             }
         }
@@ -925,8 +924,18 @@ public:
         DamageStar damage = data.value<DamageStar>();
         ServerPlayer *killer = damage ? damage->from : NULL;
 
-        if(killer && killer->hasSkill("lianpo"))
+        if(killer && killer->hasSkill("lianpo")){
             killer->addMark("lianpo");
+
+            LogMessage log;
+            log.type = "#LianpoRecord";
+            log.from = killer;
+            log.to << player;
+
+            Room *room = player->getRoom();
+            log.arg = room->getCurrent()->getGeneralName();
+            room->sendLog(log);
+        }
 
         return false;
     }
@@ -1085,19 +1094,20 @@ public:
     }
 
     virtual bool triggerable(const ServerPlayer *target) const{
-        return PhaseChangeSkill::triggerable(target)
-                && target->getPhase() == Player::NotActive
-                && target->getMark("lianpo") > 0;
+        return target->getPhase() == Player::NotActive;
     }
 
-    virtual bool onPhaseChange(ServerPlayer *shensimayi) const{
+    virtual bool onPhaseChange(ServerPlayer *player) const{
+        Room *room = player->getRoom();
+        ServerPlayer *shensimayi = room->findPlayerBySkillName("lianpo");
+        if(shensimayi == NULL || shensimayi->getMark("lianpo") <= 0)
+            return false;
+
         int n = shensimayi->getMark("lianpo");
         shensimayi->setMark("lianpo", 0);
 
         if(!shensimayi->askForSkillInvoke("lianpo"))
             return false;
-
-        Room *room = shensimayi->getRoom();
 
         LogMessage log;
         log.type = "#LianpoCanInvoke";
@@ -1105,31 +1115,20 @@ public:
         log.arg = QString::number(n);
         room->sendLog(log);
 
-        room->getThread()->trigger(TurnStart, shensimayi);
+        shensimayi->gainAnExtraTurn();
 
         return false;
     }
 };
 
-class Juejing: public TriggerSkill{
+class Juejing: public DrawCardsSkill{
 public:
-    Juejing():TriggerSkill("juejing"){
-        events << PhaseChange;
+    Juejing():DrawCardsSkill("juejing"){
         frequency = Compulsory;
     }
 
-    virtual bool trigger(TriggerEvent , ServerPlayer *player, QVariant &) const{
-        if(player->getPhase() == Player::Draw){
-            QVariant draw_num = 2 + player->getLostHp();
-            player->getRoom()->getThread()->trigger(DrawNCards, player, draw_num);
-            int n = draw_num.toInt();
-            if(n > 0)
-                player->drawCards(n, false);
-
-            return true;
-        }
-
-        return false;
+    virtual int getDrawNum(ServerPlayer *player, int n) const{
+        return n + player->getLostHp();
     }
 };
 
@@ -1201,7 +1200,7 @@ public:
         Card *new_card = NULL;
 
         Card::Suit suit = card->getSuit();
-        int number = card->getNumber();
+        int number = cards.length() > 1 ? 0 : card->getNumber();
         switch(card->getSuit()){
         case Card::Spade:{
                 new_card = new Nullification(suit, number);
@@ -1280,7 +1279,7 @@ GodPackage::GodPackage()
     shenlubu->addSkill(new Wuqian);
     shenlubu->addSkill(new Shenfen);
 
-    related_skills.insertMulti("kuangbao", "#@wrath");
+    related_skills.insertMulti("kuangbao", "#@wrath-2");
 
     General *shenzhaoyun = new General(this, "shenzhaoyun", "god", 2);
     shenzhaoyun->addSkill(new Juejing);

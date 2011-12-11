@@ -78,6 +78,10 @@ Photo::Photo()
     kingdom_item = new QGraphicsPixmapItem(this);
     kingdom_item->setPos(-12, -6);
 
+    ready_item = new QGraphicsPixmapItem(QPixmap("image/system/ready.png"), this);
+    ready_item->setPos(86, 132);
+    ready_item->hide();
+
     mark_item = new QGraphicsTextItem(this);
     mark_item->setPos(2, 99);
     mark_item->setDefaultTextColor(Qt::white);
@@ -190,6 +194,13 @@ void Photo::setDrankState(){
         avatar_area->setBrush(Qt::NoBrush);
 }
 
+void Photo::setPoisonState(){
+    if(player->getMark("poison") > 0)
+        avatar_area->setBrush(QColor(0x00, 0xFF, 0x00, 255 * 0.3));
+    else
+        avatar_area->setBrush(Qt::NoBrush);
+}
+
 void Photo::setActionState(){
     if(action_item == NULL){
         action_item = new QGraphicsPixmapItem(this);
@@ -225,9 +236,11 @@ void Photo::setPlayer(const ClientPlayer *player)
         connect(player, SIGNAL(general_changed()), this, SLOT(updateAvatar()));
         connect(player, SIGNAL(general2_changed()), this, SLOT(updateSmallAvatar()));
         connect(player, SIGNAL(kingdom_changed()), this, SLOT(updateAvatar()));
+        connect(player, SIGNAL(ready_changed(bool)), this, SLOT(updateReadyItem(bool)));
         connect(player, SIGNAL(state_changed()), this, SLOT(refresh()));
         connect(player, SIGNAL(phase_changed()), this, SLOT(updatePhase()));
         connect(player, SIGNAL(drank_changed()), this, SLOT(setDrankState()));
+        connect(player, SIGNAL(poison_changed()), this, SLOT(setPoisonState()));
         connect(player, SIGNAL(action_taken()), this, SLOT(setActionState()));
         connect(player, SIGNAL(pile_changed(QString)), this, SLOT(updatePile(QString)));
 
@@ -287,6 +300,8 @@ void Photo::updateAvatar(){
 
         avatar_area->setToolTip(QString());
         small_avatar_area->setToolTip(QString());
+
+        ready_item->hide();
     }
 
     hide_avatar = false;
@@ -318,6 +333,10 @@ void Photo::updateSmallAvatar(){
 
     hide_avatar = false;
     update();
+}
+
+void Photo::updateReadyItem(bool visible){
+    ready_item->setVisible(visible);
 }
 
 void Photo::refresh(){
@@ -405,7 +424,12 @@ void Photo::installDelayedTrick(CardItem *trick){
 
     QGraphicsPixmapItem *item = new QGraphicsPixmapItem(this);
     item->setPixmap(QPixmap(player->topDelayedTrick()->getIconPath()));
-    item->setToolTip(player->topDelayedTrick()->getDescription());
+    QString tooltip;
+    if(player->topDelayedTrick()->isVirtualCard())
+        tooltip=Sanguosha->getCard((player->topDelayedTrick()->getSubcards()).at(0))->getDescription();
+    else
+        tooltip=player->topDelayedTrick()->getDescription();
+    item->setToolTip(tooltip);
 
     item->setPos(-10, 16 + judging_area.count() * 19);
     judging_area << trick;

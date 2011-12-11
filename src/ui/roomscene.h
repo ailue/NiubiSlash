@@ -28,6 +28,7 @@ class QGroupBox;
 #include <QGraphicsWidget>
 #include <QGraphicsProxyWidget>
 #include <QThread>
+#include <QHBoxLayout>
 
 class DeathNoteDialog: public QDialog{
     Q_OBJECT
@@ -174,13 +175,14 @@ private:
     Window *prompt_box;
     QGraphicsItem *control_panel;
     QMap<QGraphicsItem *, const ClientPlayer *> item2player;
-    QDockWidget *skill_dock;
     QComboBox *sort_combobox;
+
 
     QProgressBar *progress_bar;
     int timer_id;
     int tick;
 
+    QGraphicsItem *state_item;
     QList<QGraphicsPixmapItem *> role_items;
 
     CardContainer *card_container;
@@ -278,6 +280,7 @@ private slots:
     void showOwnerButtons(bool owner);
     void showJudgeResult(const QString &who, const QString &result);
     void showPlayerCards();
+    void updateStateItem(const QString &roles);
 
     void clearPile();
     void removeLightBox();

@@ -6,6 +6,55 @@
 #include "engine.h"
 #include "standard.h"
 
+class SPMoonSpearSkill: public WeaponSkill{
+public:
+    SPMoonSpearSkill():WeaponSkill("sp_moonspear"){
+        events << CardFinished << CardResponsed;
+    }
+
+    virtual bool trigger(TriggerEvent event, ServerPlayer *player, QVariant &data) const{
+        if(player->getPhase() != Player::NotActive)
+            return false;
+
+        CardStar card = NULL;
+        if(event == CardFinished){
+            CardUseStruct card_use = data.value<CardUseStruct>();
+            card = card_use.card;
+        }else if(event == CardResponsed)
+            card = data.value<CardStar>();
+
+        if(card == NULL || !card->isBlack())
+            return false;
+
+        Room *room = player->getRoom();
+        if(!room->askForSkillInvoke(player, objectName(), data))
+            return false;
+        QList<ServerPlayer *> targets;
+        foreach(ServerPlayer *tmp, room->getOtherPlayers(player)){
+            if(player->inMyAttackRange(tmp))
+                targets << tmp;
+        }
+        if(targets.isEmpty()) return false;
+        ServerPlayer *target = room->askForPlayerChosen(player, targets, objectName());
+        if(!room->askForCard(target, "jink", "@moon-spear-jink")){
+            DamageStruct damage;
+            damage.from = player;
+            damage.to = target;
+            room->damage(damage);
+        }
+        return false;
+    }
+};
+
+class SPMoonSpear: public Weapon{
+public:
+    SPMoonSpear(Suit suit = Card::Diamond, int number = 12)
+        :Weapon(suit, number, 3){
+        setObjectName("sp_moonspear");
+        skill = new SPMoonSpearSkill;
+    }
+};
+
 class JileiClear: public PhaseChangeSkill{
 public:
     JileiClear():PhaseChangeSkill("#jilei-clear"){
@@ -97,6 +146,8 @@ public:
                 return true;
             }
         }
+        else if(player->hasArmorEffect("nailclippers") && effect.card->inherits("TrickCard"))
+            player->drawCards(1);
 
         return false;
     }
@@ -123,6 +174,8 @@ public:
     virtual bool trigger(TriggerEvent event, ServerPlayer *yuanshu, QVariant &data) const{
         if(event == DrawNCards){
             int x = getKingdoms(yuanshu);
+            if(yuanshu->hasArmorEffect("greatchair"))
+                x = qMax(3,x);
             data = data.toInt() + x;
 
             Room *room = yuanshu->getRoom();
@@ -136,6 +189,8 @@ public:
 
         }else if(event == PhaseChange && yuanshu->getPhase() == Player::Discard){
             int x = getKingdoms(yuanshu);
+            if(yuanshu->hasArmorEffect("greatchair"))
+                x = qMin(2,x);
             int total = yuanshu->getEquips().length() + yuanshu->getHandcardNum();
             Room *room = yuanshu->getRoom();
 
@@ -171,7 +226,12 @@ public:
     }
 
     virtual bool isEnabledAtPlay(const Player *player) const{
-        return player->hasLordSkill("jijiang") && Slash::IsAvailable(player);
+        if(player->hasLordSkill("jijiang"))
+            return Slash::IsAvailable(player);
+        else if(player->hasLordSkill("weidai")){
+            return !player->hasUsed("Analeptic") && !player->hasUsed("WeidaiCard");
+        }
+        return false;
     }
 
     virtual const Card *viewAs() const{
@@ -188,11 +248,12 @@ public:
 
     virtual int getCorrect(const Player *from, const Player *to) const{
         int correct = 0;
-        if(from->hasSkill(objectName()) && from->getHp() > 2)
-            correct --;
-        if(to->hasSkill(objectName()) && to->getHp() <= 2)
-            correct ++;
-
+        if(from->hasSkill(objectName()))
+            if((!from->hasArmorEffect("morin_khuur") && from->getHp() > 2)||from->hasArmorEffect("morin_khuur"))
+                correct --;
+        if(to->hasSkill(objectName()))
+            if((!to->hasArmorEffect("morin_khuur") && to->getHp() <= 2)||to->hasArmorEffect("morin_khuur"))
+                correct ++;
         return correct;
     }
 };
@@ -277,7 +338,7 @@ public:
     virtual bool onPhaseChange(ServerPlayer *guanyu) const{
         Room *room = guanyu->getRoom();
         ServerPlayer *the_lord = room->getLord();
-        if(the_lord && the_lord->getGeneralName() == "caocao"){
+        if(the_lord && the_lord->isCaoCao()){
             LogMessage log;
             log.type = "#DanjiWake";
             log.from = guanyu;
@@ -294,6 +355,16 @@ public:
         return false;
     }
 };
+
+SPCardPackage::SPCardPackage()
+    :Package("sp_cards")
+{
+    (new SPMoonSpear)->setParent(this);
+
+    type = CardPack;
+}
+
+ADD_PACKAGE(SPCard)
 
 SPPackage::SPPackage()
     :Package("sp")
@@ -335,6 +406,20 @@ SPPackage::SPPackage()
     General *sp_guanyu = new General(this, "sp_guanyu", "wei", 4);
     sp_guanyu->addSkill("wusheng");
     sp_guanyu->addSkill(new Danji);
+
+    General *sp_caiwenji = new General(this, "sp_caiwenji", "wei", 3, false, true);
+    sp_caiwenji->addSkill("beige");
+    sp_caiwenji->addSkill("duanchang");
+
+    General *sp_machao = new General(this, "sp_machao", "qun", 4, true, true);
+    sp_machao->addSkill("mashu");
+    sp_machao->addSkill("tieji");
+
+    General *sp_jiaxu = new General(this, "sp_jiaxu", "wei", 3, true, true);
+    sp_jiaxu->addSkill("wansha");
+    sp_jiaxu->addSkill("luanwu");
+    sp_jiaxu->addSkill("weimu");
+    sp_jiaxu->addSkill("#@chaos-1");
 }
 
 ADD_PACKAGE(SP);
