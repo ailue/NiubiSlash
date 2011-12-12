@@ -23,11 +23,16 @@ public:
         QString slasher = player->objectName();
         const Card *first_jink = NULL, *second_jink = NULL;
         first_jink = room->askForCard(effect.to, "jink", "@wushuang-jink-1:" + slasher);
-        if(first_jink)
+        if(first_jink){
+            if(first_jink->objectName() == "ingenarg")
+                effect.to->drawCards(1);
             second_jink = room->askForCard(effect.to, "jink", "@wushuang-jink-2:" + slasher);
+        }
 
         Card *jink = NULL;
         if(first_jink && second_jink){
+            if(second_jink->objectName() == "ingenarg")
+                effect.to->drawCards(1);
             jink = new DummyCard;
             jink->addSubcard(first_jink);
             jink->addSubcard(second_jink);
@@ -128,46 +133,36 @@ public:
     }
 };
 
-class TongqingViewAsSkill: public OneCardViewAsSkill{
-public:
-    TongqingViewAsSkill():OneCardViewAsSkill("tongqing"){
-    }
-
-    virtual bool isEnabledAtResponse(const Player *player, const QString &pattern) const{
-        return pattern.contains("peach");
-    }
-
-    virtual bool viewFilter(const CardItem *to_select) const{
-        return to_select->getCard()->inherits("Jink");
-    }
-
-    virtual const Card *viewAs(CardItem *card_item) const{
-        const Card *first = card_item->getCard();
-        Peach *peach = new Peach(first->getSuit(), first->getNumber());
-        peach->addSubcard(first->getId());
-        peach->setSkillName(objectName());
-        return peach;
-    }
-};
-
 class Tongqing: public TriggerSkill{
 public:
     Tongqing():TriggerSkill("tongqing"){
-        view_as_skill = new TongqingViewAsSkill;
-        events << CardUsed << CardFinished;
-        frequency = Compulsory;
+        events << Dying;
     }
 
-    virtual bool trigger(TriggerEvent event, ServerPlayer *player, QVariant &data) const{
-        CardUseStruct use = data.value<CardUseStruct>();
-        if(event == CardUsed){
-            if(use.card->getSkillName() == "tongqing")
-                player->addMark("tongqing");
-        }
-        else{
-            Room *room = player->getRoom();
-            if(player->getMark("tongqing") > 0)
-                player->drawCards(qMin(room->getAlivePlayers().length(), player->getMark("tongqing")));
+    virtual bool triggerable(const ServerPlayer *target) const{
+        return true;
+    }
+
+    virtual bool trigger(TriggerEvent , ServerPlayer *player, QVariant &data) const{
+        Room *room = player->getRoom();
+        ServerPlayer *ayumi = room->findPlayerBySkillName("tongqing");
+        if(!ayumi)
+            return false;
+        DyingStruct dying = data.value<DyingStruct>();
+        const Card *card = room->askForCard(ayumi, "jink", "@tongqing:" + dying.who->objectName());
+        if(card){
+            ayumi->addMark("tongqing");
+            Peach *peach = new Peach(card->getSuit(), card->getNumber());
+            peach->addSubcard(card->getEffectiveId());
+            peach->setSkillName(objectName());
+            CardUseStruct use;
+            use.card = peach;
+            use.from = ayumi;
+            use.to << dying.who;
+            room->useCard(use);
+
+            if(ayumi->getMark("tongqing") > 0)
+                ayumi->drawCards(qMin(room->getAlivePlayers().length(), ayumi->getMark("tongqing")));
         }
         return false;
     }

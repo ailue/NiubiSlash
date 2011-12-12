@@ -222,9 +222,8 @@ bool GameRule::trigger(TriggerEvent event, ServerPlayer *player, QVariant &data)
 
             QList<ServerPlayer *> savers;
             ServerPlayer *current = room->getCurrent();
-            if(current->isAlive()){
+            if(current->isAlive())
                 savers << player;
-            }
 
             LogMessage log;
             log.type = "#AskForPeaches";
