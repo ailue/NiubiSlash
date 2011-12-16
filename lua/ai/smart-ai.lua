@@ -120,6 +120,8 @@ function SmartAI:initialize(player)
 			if not success then 
 				self.room:writeToConsole(result1) 
 				self.room:writeToConsole(debug.traceback()) 
+				self.room:writeToConsole("Event stack:")
+				self.room:outputEventStack()
 			else 
 				return result1, result2 
 			end  
@@ -523,6 +525,9 @@ function SmartAI:filterEvent(event, player, data)
 			if carduse.card:inherits("GuhuoCard") then
 				sgs.questioner = nil
 			end
+			if carduse.card:inherits("LianliSlashCard") then
+				sgs.lianlislash = false
+			end
 		elseif data:toString() then
 			promptlist = data:toString():split(":")
 			if promptlist[1] == "cardResponsed" then
@@ -532,6 +537,8 @@ function SmartAI:filterEvent(event, player, data)
 					sgs.jijiangsource = nil
 				elseif promptlist[3] == "@lianli-jink" and promptlist[4] ~= "_nil_" then
 					sgs.lianlisource = nil
+				elseif promptlist[3] == "@lianli-slash" and promptlist[4] ~= "_nil_" then
+					sgs.lianlislash=true
 				end
 			elseif promptlist[1] == "skillInvoke" and promptlist[3] == "yes" then
 				if promptlist[2] == "hujia" then
@@ -674,22 +681,17 @@ function SmartAI:getEnemies(player)
 end
 
 function SmartAI:isFriend(other, another)
-	if not other then self.room:writeToConsole(debug.traceback()) end
-	if another then 
-		if self.lua_ai:isFriend(other) and self.lua_ai:isFriend(another) then return true end
-	end
+	if another then return self:isFriend(other)==self:isFriend(another) end
     if useDefaultStrategy() then return self.lua_ai:isFriend(other) end
-    if (self.player:objectName()) == (other:objectName()) then return true end 
+    if self.player:objectName() == other:objectName() then return true end 
 	if self:objectiveLevel(other) < 0 then return true end
     return false
 end
 
 function SmartAI:isEnemy(other, another)
-	if another then 
-		if self.lua_ai:isEnemy(other) and self.lua_ai:isEnemy(another) then return true end
-	end
+	if another then return self:isFriend(other)~=self:isFriend(another) end
     if useDefaultStrategy() then return self.lua_ai:isEnemy(other) end
-    if (self.player:objectName()) == (other:objectName()) then return false end 
+    if self.player:objectName() == other:objectName() then return false end 
 	if self:objectiveLevel(other) > 0 then return true end
 	return false
 end
@@ -1081,6 +1083,7 @@ function SmartAI:slashProhibit(card,enemy)
 		if self:getCardsNum("Jink",enemy) == 0 and enemy:getHp() < 2 and self:slashIsEffective(card,enemy) then return true end
 		if enemy:isLord() and self:isWeak(enemy) and self:slashIsEffective(card,enemy) then return true end
 		if (enemy:hasSkill("duanchang") or enemy:hasSkill("huilei") or enemy:hasSkill("dushi")) and self:isWeak(enemy) then return true end
+		if self:isEquip("GudingBlade") and enemy:isKongcheng() then return true end
     else    
 		if enemy:hasSkill("liuli") then 
 			if enemy:getHandcardNum() < 1 then return false end
@@ -1171,7 +1174,8 @@ function SmartAI:useBasicCard(card, use, no_distance)
 		for _, friend in ipairs(self.friends_noself) do						
 			local slash_prohibit = false
 			slash_prohibit = self:slashProhibit(card,friend)
-			if (self.player:hasSkill("pojun") and friend:getHp()  > 4 and self:getCardsNum("Jink", friend) == 0) 
+			if (self.player:hasSkill("pojun") and friend:getHp() > 4 and self:getCardsNum("Jink", friend) == 0 
+				and friend:getHandcardNum() < 3)
 			or (friend:hasSkill("leiji") and (self:getCardsNum("Jink", friend) > 0 or (not self:isWeak(friend) and self:isEquip("EightDiagram",friend))))
 			or (friend:isLord() and self.player:hasSkill("guagu") and friend:getLostHp() >= 1 and self:getCardsNum("Jink", friend) == 0)
 			then
@@ -1204,7 +1208,7 @@ function SmartAI:useBasicCard(card, use, no_distance)
 				self:slashIsEffective(card, enemy) then
 					-- fill the card use struct
 					local anal = self:searchForAnaleptic(use,enemy,card)
-					if anal and not self:isEquip("SilverLion", enemy) and (not use.to or use.to:isEmpty()) then
+					if anal and not self:isEquip("SilverLion", enemy) and (not use.to or use.to:isEmpty()) and not self:isWeak() then
 						use.card = anal
 						return
 					end
@@ -1955,7 +1959,7 @@ function SmartAI:evaluateArmor(card, player)
 	if ecard:inherits("Vine") then
 		for _, enemy in ipairs(self:getEnemies(player)) do
 			if (enemy:canSlash(player) and self:isEquip("Fan",enemy)) or enemy:hasSkill("huoji") then return -1 end
-			if enemy == self.player and (enemy:getCardId("FireSlash") or enemy:getCardId("FireAttack")) then return -1 end
+			if enemy == self.player and (self:getCardId("FireSlash", enemy) or self:getCardId("FireAttack",enemy)) then return -1 end
 		end
 	end
 	if #(self:getEnemies(player))<3 and ecard:inherits("Vine") then return 4 end
