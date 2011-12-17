@@ -177,6 +177,7 @@ public:
 
             switch(judge.card->getSuit()){
             case Card::Heart:{
+                    room->playSkillEffect(objectName(), 4);
                     RecoverStruct recover;
                     recover.who = caiwenji;
                     room->recover(player, recover);
@@ -185,12 +186,13 @@ public:
                 }
 
             case Card::Diamond:{
+                    room->playSkillEffect(objectName(), 3);
                     player->drawCards(2);
-
                     break;
                 }
 
             case Card::Club:{
+                    room->playSkillEffect(objectName(), 1);
                     if(damage.from && damage.from->isAlive()){
                         int to_discard = qMin(2, damage.from->getCardCount(true));
                         if(to_discard != 0)
@@ -201,6 +203,7 @@ public:
                 }
 
             case Card::Spade:{
+                    room->playSkillEffect(objectName(), 2);
                     if(damage.from && damage.from->isAlive())
                         damage.from->turnOver();
 
@@ -238,7 +241,9 @@ public:
             log.type = "#DuanchangLoseSkills";
             log.from = player;
             log.to << damage->from;
+            log.arg = objectName();
             room->sendLog(log);
+            room->playSkillEffect(objectName());
 
             QList<const Skill *> skills = damage->from->getVisibleSkillList();
             foreach(const Skill *skill, skills){
