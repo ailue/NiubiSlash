@@ -148,7 +148,7 @@ INCLUDEPATH += src/util
 
 win32{
     RC_FILE += resource/icon.rc
-    LIBS += -L. -llua -lm
+    LIBS += -L. -llua -lm -lgif
 }
 
 unix:!macx {
