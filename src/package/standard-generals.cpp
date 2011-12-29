@@ -384,8 +384,8 @@ void StandardPackage::addGenerals(){
     General *sato = new General(this, "sato", "45s", 4, false);
     sato->addSkill(new Checha);
 
-    General *meguri = new General(this, "meguri", "45s");
-    meguri->addSkill(new Tiemian);
+    General *megure = new General(this, "megure", "45s");
+    megure->addSkill(new Tiemian);
 
     General *akai = new General(this, "akai", "45s");
     akai->addSkill(new Skill("zhuisuo"));
