@@ -235,12 +235,10 @@ QString Engine::translate(const QString &to_translate) const{
 }
 
 int Engine::getRoleIndex() const{
-    if(ServerInfo.GameMode == "08boss"){
-        return 2;
-    }else if(ServerInfo.GameMode.startsWith("@")){
+    if(ServerInfo.GameMode.startsWith("@")){
         return 3;
     }else if(ServerInfo.GameMode == "06_3v3"){
-        return 4;
+        return 2;
     }else
         return 1;
 }

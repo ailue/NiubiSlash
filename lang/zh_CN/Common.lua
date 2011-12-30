@@ -123,12 +123,18 @@ return {
 
 	["test"] = "测试",
 	["god"] = "上帝",
-	["sujiang"] = "素将",
-	["sujiangf"] = "素将(女)",
+	["sujiang"] = "稻草男",
+	["sujiangf"] = "稻草女",
 
 	["3v3:cw"] = "顺时针",
 	["3v3:ccw"] = "逆时针",
 	["cw"] = "顺时针",
 	["ccw"] = "逆时针",
 	["#TrickDirection"] = "%from 选择了 %arg 作为结算的顺序",
+
+	["runaway_mode"] = "跑路模式",
+	["#Runprex"] = "%from 翻开一张跑路牌，但由于其点数 %arg 不小于场上存活角色数，本次不得跑路",
+	["#Runpre"] = "%from 翻开一张跑路牌，他需要跑 %arg 步路",
+	["#Runaway2"] = "%arg 位 %from 和 %arg2 位 %to 交换了位置",
+	["#Runaway"] = "%arg 位 %from 跑到了 %arg2 位 的位置",
 }

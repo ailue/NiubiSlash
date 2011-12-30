@@ -85,11 +85,15 @@ void GameRule::onPhaseChange(ServerPlayer *player) const{
                 room->setPlayerFlag(player, "-drank");
             }
 
-            if(player->hasFlag("Speak") && !player->hasUsed("MpCard")){
-                ServerPlayer *owner = room->getTag("McOwner").value<ServerPlayer *>();
-                //if(owner->isDead())
-                //    owner = room->moveMicrophone(owner, true);
-                room->moveMc(player, owner);
+            if(player->hasFlag("Speak")){
+                if(!player->hasUsed("MpCard")){
+                    ServerPlayer *owner = room->getTag("McOwner").value<PlayerStar>();
+                    //if(owner->isDead())
+                    //    owner = room->moveMicrophone(owner, true);
+                    if(owner)
+                        room->moveMc(player, owner);
+                }
+                room->removeTag("McOwner");
             }
             player->clearFlags();
             foreach(ServerPlayer *tmp, room->getAlivePlayers())

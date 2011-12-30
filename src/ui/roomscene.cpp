@@ -1331,14 +1331,14 @@ void RoomScene::updateRoleComboBox(const QString &new_role){
     boss_mode["rebel"] = tr("Citizen");
     boss_mode["renegade"] = tr("Guard");
 
-    threeV3_mode["lord"] = threeV3_mode["renegade"] = tr("Marshal");
+    threeV3_mode["lord"] = tr("Marshal1");
+    threeV3_mode["renegade"] = tr("Marshal2");
     threeV3_mode["loyalist"] = threeV3_mode["rebel"] = tr("Vanguard");
 
     QMap<QString, QString> *map = NULL;
     switch(Sanguosha->getRoleIndex()){
-    case 2: map = &boss_mode; break;
+    case 2: map = &threeV3_mode; break;
     case 3:  break;
-    case 4: map = &threeV3_mode; break;
     default:
         map = &normal_mode;
     }

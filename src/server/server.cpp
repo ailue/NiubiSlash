@@ -323,6 +323,7 @@ QGroupBox *ServerDialog::create3v3Box(){
     QVBoxLayout *vlayout = new QVBoxLayout;
 
     standard_3v3_radiobutton = new QRadioButton(tr("Standard mode"));
+    standard_3v3_radiobutton->setEnabled(false);
     QRadioButton *extend = new QRadioButton(tr("Extension mode"));
     QPushButton *extend_edit_button = new QPushButton(tr("General selection ..."));
     extend_edit_button->setEnabled(false);

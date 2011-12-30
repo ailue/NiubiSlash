@@ -102,6 +102,7 @@ Mp4Card::Mp4Card(){
 void Mp4Card::use(Room *room, ServerPlayer *source, const QList<ServerPlayer *> &targets) const{
     room->moveMicrophone(source);
     const Card *card = Sanguosha->getCard(this->getSubcards().first());
+    room->throwCard(this);
     RecoverStruct reo;
     reo.card = card;
     reo.who = source;
