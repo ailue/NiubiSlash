@@ -591,22 +591,22 @@
     <message>
         <location filename="src/client/client.cpp" line="1662"/>
         <source>Leader of Team 1</source>
-        <translation>第一队责任人</translation>
+        <translation>原告</translation>
     </message>
     <message>
         <location filename="src/client/client.cpp" line="1663"/>
         <source>Guard of Team 1</source>
-        <translation>第一队人证</translation>
+        <translation>原告证人</translation>
     </message>
     <message>
         <location filename="src/client/client.cpp" line="1664"/>
         <source>Leader of Team 2</source>
-        <translation>第二队责任人</translation>
+        <translation>被告</translation>
     </message>
     <message>
         <location filename="src/client/client.cpp" line="1665"/>
         <source>Guard of Team 2</source>
-        <translation>第二队人证</translation>
+        <translation>被告证人</translation>
     </message>
     <message>
         <location filename="src/client/client.cpp" line="1683"/>
