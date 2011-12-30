@@ -571,42 +571,42 @@
     <message>
         <location filename="src/client/client.cpp" line="1657"/>
         <source>Warm leader</source>
-        <translation>暖色主帅</translation>
+        <translation>暖色原告</translation>
     </message>
     <message>
         <location filename="src/client/client.cpp" line="1658"/>
         <source>Warm guard</source>
-        <translation>暖色前锋</translation>
+        <translation>暖色证人</translation>
     </message>
     <message>
         <location filename="src/client/client.cpp" line="1659"/>
         <source>Cool leader</source>
-        <translation>冷色主帅</translation>
+        <translation>冷色被告</translation>
     </message>
     <message>
         <location filename="src/client/client.cpp" line="1660"/>
         <source>Cool guard</source>
-        <translation>冷色前锋</translation>
+        <translation>冷色证人</translation>
     </message>
     <message>
         <location filename="src/client/client.cpp" line="1662"/>
         <source>Leader of Team 1</source>
-        <translation>第一队主帅</translation>
+        <translation>第一队责任人</translation>
     </message>
     <message>
         <location filename="src/client/client.cpp" line="1663"/>
         <source>Guard of Team 1</source>
-        <translation>第一队前锋</translation>
+        <translation>第一队人证</translation>
     </message>
     <message>
         <location filename="src/client/client.cpp" line="1664"/>
         <source>Leader of Team 2</source>
-        <translation>第二队主帅</translation>
+        <translation>第二队责任人</translation>
     </message>
     <message>
         <location filename="src/client/client.cpp" line="1665"/>
         <source>Guard of Team 2</source>
-        <translation>第二队前锋</translation>
+        <translation>第二队人证</translation>
     </message>
     <message>
         <location filename="src/client/client.cpp" line="1683"/>
@@ -2465,14 +2465,19 @@
         <translation>护卫</translation>
     </message>
     <message>
+        <location filename="src/ui/roomscene.cpp" line="1334"/>
+        <source>Marshal1</source>
+        <translation>原告</translation>
+    </message>
+    <message>
         <location filename="src/ui/roomscene.cpp" line="1335"/>
-        <source>Marshal</source>
-        <translation>主帅</translation>
+        <source>Marshal2</source>
+        <translation>被告</translation>
     </message>
     <message>
         <location filename="src/ui/roomscene.cpp" line="1336"/>
         <source>Vanguard</source>
-        <translation>前锋</translation>
+        <translation>证人</translation>
     </message>
     <message>
         <location filename="src/ui/roomscene.cpp" line="1869"/>

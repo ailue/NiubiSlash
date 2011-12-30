@@ -123,8 +123,8 @@ return {
 
 	["test"] = "测试",
 	["god"] = "上帝",
-	["sujiang"] = "素将",
-	["sujiangf"] = "素将(女)",
+	["sujiang"] = "稻草男",
+	["sujiangf"] = "稻草女",
 
 	["3v3:cw"] = "顺时针",
 	["3v3:ccw"] = "逆时针",
