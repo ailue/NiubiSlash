@@ -419,10 +419,11 @@ public:
     virtual void onDamaged(ServerPlayer *player, const DamageStruct &) const{
         Room *room = player->getRoom();
         foreach(ServerPlayer *tmp, room->getOtherPlayers(player)){
-            const Card *card = tmp->getRandomHandCard();
             room->invokeSkill(player, objectName());
-            if(card)
+            if(!tmp->isKongcheng()){
+                const Card *card = tmp->getRandomHandCard();
                 player->obtainCard(card);
+            }
             else{
                 DamageStruct dmg;
                 dmg.from = player;

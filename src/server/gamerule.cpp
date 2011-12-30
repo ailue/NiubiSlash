@@ -154,7 +154,10 @@ bool GameRule::trigger(TriggerEvent event, ServerPlayer *player, QVariant &data)
             room->attachSkillToPlayer(player, "mp2");
             room->attachSkillToPlayer(player, "mp3");
             room->attachSkillToPlayer(player, "mp4");
-            if(player->getRole() == "renegade" && room->getMode() != "02_1v1" && room->getMode() != "06_3v3")
+            if(player->getRole() == "renegade" &&
+               room->getMode() != "02_1v1" &&
+               room->getMode() != "06_3v3" &&
+               room->getMode() != "couple")
                 room->attachSkillToPlayer(player, "heiyi");
 
             if(room->getMode() == "02_1v1")
