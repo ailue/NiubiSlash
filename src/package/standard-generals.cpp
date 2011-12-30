@@ -410,9 +410,35 @@ void StandardPackage::addGenerals(){
     addMetaObject<CheatCard>();
 }
 
+class Buju:public MasochismSkill{
+public:
+    Buju():MasochismSkill("buju"){
+        frequency = Compulsory;
+    }
+
+    virtual void onDamaged(ServerPlayer *player, const DamageStruct &) const{
+        Room *room = player->getRoom();
+        foreach(ServerPlayer *tmp, room->getOtherPlayers(player)){
+            const Card *card = tmp->getRandomHandCard();
+            room->invokeSkill(player, objectName());
+            if(card)
+                player->obtainCard(card);
+            else{
+                DamageStruct dmg;
+                dmg.from = player;
+                dmg.to = tmp;
+                room->damage(dmg);
+            }
+        }
+    }
+};
+
 TestPackage::TestPackage()
     :Package("test")
 {
+    General *aoyama = new General(this, "aoyama", "45s", 4, true, true);
+    aoyama->addSkill(new Buju);
+
     new General(this, "sujiang", "god", 5, true, true);
     new General(this, "sujiangf", "god", 5, false, true);
 }

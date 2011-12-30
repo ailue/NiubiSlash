@@ -43,8 +43,8 @@ extern "C" {
 
     Package *NewStandardCard();
 
-    //Scenario *NewCoupleScenario();
-    Scenario *NewLegendScenario();
+    Scenario *NewCoupleScenario();
+    //Scenario *NewLegendScenario();
     //Scenario *NewImpasseScenario();
 }
 
@@ -61,8 +61,8 @@ Engine::Engine()
 
     addPackage(NewStandardCard());
 
-    //addScenario(NewCoupleScenario());
-    addScenario(NewLegendScenario());
+    addScenario(NewCoupleScenario());
+    //addScenario(NewLegendScenario());
     //addScenario(NewImpasseScenario());
 
     // available game modes
