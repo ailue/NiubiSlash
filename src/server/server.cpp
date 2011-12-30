@@ -405,7 +405,7 @@ QGroupBox *ServerDialog::createGameModeBox(){
         // add scenario modes
         QRadioButton *scenario_button = new QRadioButton(tr("Scenario mode"));
         scenario_button->setObjectName("scenario");
-        scenario_button->setEnabled(false);
+        //scenario_button->setEnabled(false);
         mode_group->addButton(scenario_button);
 
         scenario_combobox = new QComboBox;
