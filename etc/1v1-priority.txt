@@ -4,12 +4,12 @@ ai 6
 heiji 5
 kazuha 6
 sonoko 1
-hiroshi 8
+hiroshi 8 *
 tanteitan 5
 kogorou 7
 takagi 4
 sato 1
-meguri 6
+megure 6 *
 akai 2
 jodie 6
 gin 4
