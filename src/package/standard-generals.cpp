@@ -22,11 +22,11 @@ public:
 
         QString slasher = player->objectName();
         const Card *first_jink = NULL, *second_jink = NULL;
-        first_jink = room->askForCard(effect.to, "jink", "@wushuang-jink-1:" + slasher);
+        first_jink = room->askForCard(effect.to, "jink", "@zhi1zhi:" + slasher);
         if(first_jink){
             if(first_jink->objectName() == "ingenarg")
                 effect.to->drawCards(1);
-            second_jink = room->askForCard(effect.to, "jink", "@wushuang-jink-2:" + slasher);
+            second_jink = room->askForCard(effect.to, "jink", "@zhi2zhi:" + slasher);
         }
 
         Card *jink = NULL;
@@ -79,14 +79,14 @@ public:
 class Jizhi:public DrawCardsSkill{
 public:
     Jizhi():DrawCardsSkill("jizhi"){
-        frequency = Compulsory;
+        frequency = Frequent;
     }
 
     virtual int getDrawNum(ServerPlayer *heiji, int n) const{
         int a = heiji->getLostHp();
-        if(a > 0)
-            heiji->getRoom()->invokeSkill(heiji, objectName());
-        return n + a;
+        if(a > 0 && heiji->askForSkillInvoke(objectName()))
+            return n + a;
+        return n;
     }
 };
 
@@ -193,7 +193,8 @@ public:
     virtual void onDamaged(ServerPlayer *player, const DamageStruct &damage) const{
         Room *room = player->getRoom();
         if(damage.from && damage.to && player->getLostHp() > damage.from->getLostHp() &&
-           room->askForDiscard(damage.to, objectName(), 1)){
+           !damage.to->isKongcheng() &&
+           room->askForCard(damage.to, ".", "@tiemian:" + damage.from->objectName(), QVariant::fromValue(damage))){
             DamageStruct dmg;
             dmg.from = player;
             dmg.to = damage.from;
