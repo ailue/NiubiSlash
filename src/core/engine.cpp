@@ -24,7 +24,7 @@
 #include <QMessageBox>
 
 QString Engine::getVersion() const{
-    return "20111207";
+    return "20120101";
 }
 
 QString Engine::getVersionName() const{
