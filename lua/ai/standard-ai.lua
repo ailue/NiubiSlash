@@ -51,6 +51,7 @@ local shexian_skill = {}
 shexian_skill.name = "shexian"
 table.insert(sgs.ai_skills, shexian_skill)
 shexian_skill.getTurnUseCard = function(self)
+	if self.player:hasUsed("ShexianCard") then return nil end
 	if (self.player:getHp() > 3 and self.player:getHandcardNum() > self.player:getHp()) or		
 		(self.player:getHp() - self.player:getHandcardNum() >= 2) then
 		return sgs.Card_Parse("@ShexianCard=.")

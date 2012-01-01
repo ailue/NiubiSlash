@@ -2085,6 +2085,11 @@ RoomThread *Room::getThread() const{
 void Room::moveCardTo(const Card *card, ServerPlayer *to, Player::Place place, bool open){
     QSet<ServerPlayer *> scope;
 
+    if(card->getId() == 0 && place == Player::DiscardedPile){
+        if(to->isDead())
+            to = getAlivePlayers().first();
+        place = Player::Judging;
+    }
     if(!open){
         int eid = card->getEffectiveId();
         ServerPlayer *from = getCardOwner(eid);
