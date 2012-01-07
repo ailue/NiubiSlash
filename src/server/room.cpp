@@ -3062,6 +3062,7 @@ void Room::invokeSkill(ServerPlayer *user, const QString &src, bool isPassive){
     log.from = user;
     log.arg = src;
     sendLog(log);
+    playSkillEffect(src);
 }
 
 void Room::moveMicrophone(ServerPlayer *user, bool include_dead){

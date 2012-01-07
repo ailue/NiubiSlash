@@ -151,6 +151,7 @@ public:
         DyingStruct dying = data.value<DyingStruct>();
         const Card *card = room->askForCard(ayumi, "jink", "@tongqing:" + dying.who->objectName());
         if(card){
+            room->playSkillEffect(objectName());
             ayumi->addMark("tongqing");
             Peach *peach = new Peach(card->getSuit(), card->getNumber());
             peach->addSubcard(card->getEffectiveId());
