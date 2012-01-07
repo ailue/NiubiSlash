@@ -70,10 +70,6 @@ QString Peach::getSubtype() const{
     return "recover_card";
 }
 
-QString Peach::getEffectPath(bool is_male) const{
-    return Card::getEffectPath();
-}
-
 bool Peach::targetFilter(const QList<const Player *> &targets, const Player *to_select, const Player *Self) const{
     if(!targets.isEmpty())
         return false;
