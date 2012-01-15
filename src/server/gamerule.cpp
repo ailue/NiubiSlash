@@ -287,6 +287,8 @@ bool GameRule::trigger(TriggerEvent event, ServerPlayer *player, QVariant &data)
             room->sendDamageLog(damage);
 
             room->applyDamage(player, damage);
+            if(player->hasSkill("zhengzhi") && player->getLostHp() == 4)
+                room->playSkillEffect("zhengzhi");
             if(player->getHp() <= 0){
                 room->enterDying(player, &damage);
             }
