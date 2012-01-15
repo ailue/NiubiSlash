@@ -240,6 +240,7 @@ Ignore::Ignore(Suit suit, int number)
     setObjectName("ignore");
     will_throw = false;
     target_fixed = true;
+    mute = true;
 }
 
 void Ignore::onEffect(const CardEffectStruct &effect) const{
@@ -358,7 +359,7 @@ Speak::Speak(Suit suit, int number)
 void Speak::onEffect(const CardEffectStruct &effect) const{
     Room *room = effect.to->getRoom();
     effect.from->setFlags("Speak");
-    ServerPlayer *o;
+    PlayerStar o;
     foreach(ServerPlayer *tmp, room->getAllPlayers()){
         if(tmp->containsTrick("microphone")){
             o = tmp;

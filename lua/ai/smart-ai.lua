@@ -1639,18 +1639,15 @@ function SmartAI:askForCard(pattern, prompt, data)
 
 	if parsedPrompt[1] == "@tiemian" then
 		local damage = data:toDamage()
-		local hand_card = self.player:getHandcards()
-		for _, card in sgs.qlist(hand_card) do
-			if self:isEnemy(damage.from) then return card:getEffectiveId() end
+		if self:isEnemy(damage.from) then
+			return self.player:getRandomHandCard()
 		end
-	elseif parsedPrompt[1] == "@enyuan" then
-		local cards = self.player:getHandcards()
-		for _, card in sgs.qlist(cards) do
-			if card:getSuit() == sgs.Card_Heart and not (card:inherits("Peach") or card:inherits("ExNihio")) then
-				return card:getEffectiveId()
-			end
+	elseif parsedPrompt[1] == "@tongqing" then
+		local dy = data:toDying()
+		local jink = self:getCardId("Jink")
+		if self:isFriend(dy.who) and jink then
+			return jink
 		end
-		return "."
 	elseif parsedPrompt[1] == "@xiangle-discard" then
 		local effect = data:toCardEffect()
 		if self:isFriend(effect.to) and not

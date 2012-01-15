@@ -149,7 +149,7 @@ public:
         if(!ayumi)
             return false;
         DyingStruct dying = data.value<DyingStruct>();
-        const Card *card = room->askForCard(ayumi, "jink", "@tongqing:" + dying.who->objectName());
+        const Card *card = room->askForCard(ayumi, "jink", "@tongqing:" + dying.who->objectName(), data);
         if(card){
             room->playSkillEffect(objectName());
             ayumi->addMark("tongqing");

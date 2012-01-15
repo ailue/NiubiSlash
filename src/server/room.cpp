@@ -3073,6 +3073,7 @@ void Room::moveMicrophone(ServerPlayer *user, bool include_dead){
             break;
         }
     }
+    user->setFlags("UsedMp");
 }
 
 void Room::moveMc(ServerPlayer *from, ServerPlayer *to){

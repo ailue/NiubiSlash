@@ -86,7 +86,7 @@ void GameRule::onPhaseChange(ServerPlayer *player) const{
             }
 
             if(player->hasFlag("Speak")){
-                if(!player->hasUsed("MpCard")){
+                if(!player->hasFlag("UsedMp")){
                     ServerPlayer *owner = room->getTag("McOwner").value<PlayerStar>();
                     //if(owner->isDead())
                     //    owner = room->moveMicrophone(owner, true);
@@ -342,6 +342,7 @@ bool GameRule::trigger(TriggerEvent event, ServerPlayer *player, QVariant &data)
                    effect.card && effect.card->getSkillName() != "mp2" &&
                    (effect.card->inherits("Slash") || effect.card->inherits("Duel"))){
                     if(effect.to->askForSkillInvoke("ignore", data)){
+                        room->playCardEffect("ignore", effect.to->getGeneral()->isMale());
                         room->throwCard(effect.to->getPile("ignore").first());
                         return true;
                     }
