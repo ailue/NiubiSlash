@@ -44,16 +44,9 @@ int main(int argc, char *argv[])
     qApp->installTranslator(&qt_translator);
     qApp->installTranslator(&translator);
 
-    Config.init();
     Sanguosha = new Engine;
+    Config.init();
     BanPair::loadBanPairs();
-
-
-    QFile file("sanguosha.qss");
-    if(file.open(QIODevice::ReadOnly)){
-        QTextStream stream(&file);
-        qApp->setStyleSheet(stream.readAll());
-    }
 
     if(qApp->arguments().contains("-server")){
         Server *server = new Server(qApp);
@@ -65,6 +58,12 @@ int main(int argc, char *argv[])
             printf("Starting failed!\n");
 
         return qApp->exec();
+    }
+
+    QFile file("sanguosha.qss");
+    if(file.open(QIODevice::ReadOnly)){
+        QTextStream stream(&file);
+        qApp->setStyleSheet(stream.readAll());
     }
 
 #ifdef AUDIO_SUPPORT
