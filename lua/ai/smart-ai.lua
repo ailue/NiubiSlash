@@ -1641,12 +1641,16 @@ function SmartAI:askForCard(pattern, prompt, data)
 		local damage = data:toDamage()
 		if self:isEnemy(damage.from) then
 			return self.player:getRandomHandCard()
+		else
+			return "."
 		end
 	elseif parsedPrompt[1] == "@tongqing" then
 		local dy = data:toDying()
 		local jink = self:getCardId("Jink")
 		if self:isFriend(dy.who) and jink then
 			return jink
+		else
+			return "."
 		end
 	elseif parsedPrompt[1] == "@xiangle-discard" then
 		local effect = data:toCardEffect()
