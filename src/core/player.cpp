@@ -582,8 +582,6 @@ bool Player::canSlash(const Player *other, bool distance_limit) const{
     //if(distance_limit)
     //    return distanceTo(other) <= getAttackRange();
     //else
-    if(this->hasFlag("mp3") && this->hasUsed("Slash"))
-        return other->hasFlag("mp3");
     return true;
 }
 
@@ -690,7 +688,7 @@ bool Player::isProhibited(const Player *to, const Card *card) const{
 }
 
 bool Player::canSlashWithoutCrossbow() const{
-    if(hasSkill("zhuisuo") || hasFlag("mp3"))
+    if(hasSkill("zhuisuo"))
         return true;
     return getSlashCount() < 1;
 }

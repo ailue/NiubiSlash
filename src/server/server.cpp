@@ -209,6 +209,8 @@ QWidget *ServerDialog::createAdvancedTab(){
 
     QWidget *widget = new QWidget;
     widget->setLayout(layout);
+
+    free_assign_checkbox->setVisible(false);
     return widget;
 }
 
@@ -661,7 +663,7 @@ bool ServerDialog::config(){
     Config.setValue("OperationNoLimit", Config.OperationNoLimit);
     Config.setValue("ContestMode", Config.ContestMode);
     Config.setValue("FreeChoose", Config.FreeChoose);
-    Config.setValue("FreeAssign", free_assign_checkbox->isChecked());
+    //Config.setValue("FreeAssign", free_assign_checkbox->isChecked());
     Config.setValue("MaxChoice", maxchoice_spinbox->value());
     Config.setValue("ForbidSIMC", Config.ForbidSIMC);
     Config.setValue("DisableChat", Config.DisableChat);

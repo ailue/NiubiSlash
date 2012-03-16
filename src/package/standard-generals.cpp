@@ -315,10 +315,13 @@ public:
     Mp3():ZeroCardViewAsSkill("mp3"){
     }
     virtual bool isEnabledAtPlay(const Player *player) const{
-        return player->containsTrick("microphone");
+        return player->containsTrick("microphone") || player->hasFlag("mp3");
     }
     virtual const Card *viewAs() const{
-        return new Mp3Card;
+        if(Self->hasFlag("mp3")){
+            return new Mp3SlashCard;
+        }else
+            return new Mp3Card;
     }
 };
 
@@ -407,6 +410,7 @@ void StandardPackage::addGenerals(){
     addMetaObject<Mp4Card>();
     addMetaObject<Mp3Card>();
     addMetaObject<Mp2Card>();
+    addMetaObject<Mp3SlashCard>();
     addMetaObject<HeiyiCard>();
 
     addMetaObject<CheatCard>();

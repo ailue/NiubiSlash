@@ -92,7 +92,7 @@ void Mp3Card::onEffect(const CardEffectStruct &effect) const{
     Room *room = effect.from->getRoom();
     room->moveMicrophone(effect.from);
     room->setPlayerFlag(effect.from, "mp3");
-    room->setPlayerFlag(effect.to, "mp3");
+    effect.from->tag["Mp3Target"] = QVariant::fromValue((PlayerStar)effect.to);
 }
 
 Mp4Card::Mp4Card(){
@@ -107,6 +107,26 @@ void Mp4Card::use(Room *room, ServerPlayer *source, const QList<ServerPlayer *> 
     reo.card = card;
     reo.who = source;
     room->recover(source, reo);
+}
+
+Mp3SlashCard::Mp3SlashCard(){
+    target_fixed = true;
+}
+
+void Mp3SlashCard::onUse(Room *room, const CardUseStruct &card_use) const{
+    ServerPlayer *target = card_use.from->tag["Mp3Target"].value<PlayerStar>();
+    if(!target || target->isDead())
+        return;
+    if(!card_use.from->canSlash(target, false))
+        return;
+    const Card *slash = room->askForCard(card_use.from, "slash", "@mp3-slash:" + target->objectName());
+    if(slash){
+        CardUseStruct use;
+        use.card = slash;
+        use.from = card_use.from;
+        use.to << target;
+        room->useCard(use);
+    }
 }
 
 HeiyiCard::HeiyiCard(){

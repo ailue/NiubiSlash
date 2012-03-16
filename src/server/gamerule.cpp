@@ -96,9 +96,7 @@ void GameRule::onPhaseChange(ServerPlayer *player) const{
                 room->removeTag("McOwner");
             }
             player->clearFlags();
-            foreach(ServerPlayer *tmp, room->getAlivePlayers())
-                if(tmp->hasFlag("mp3"))
-                    tmp->setFlags("-mp3");
+            player->tag.remove("Mp3Target");
 
             return;
         }
