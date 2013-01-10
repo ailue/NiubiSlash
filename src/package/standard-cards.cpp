@@ -130,7 +130,7 @@ void Concludence::onEffect(const CardEffectStruct &effect) const{
 }
 
 AmazingGrace::AmazingGrace(Suit suit, int number)
-    :GlobalEffect(suit, number)
+    :TrickCard(suit, number, false)
 {
     setObjectName("amazing_grace");
 }
@@ -145,11 +145,14 @@ void AmazingGrace::use(Room *room, ServerPlayer *source, const QList<ServerPlaye
     QVariantList ag_list;
     foreach(int card_id, card_ids)
         ag_list << card_id;
-    room->setTag("AmazingGrace", ag_list);
 
-    GlobalEffect::use(room, source, players);
+    foreach(ServerPlayer *player, players){
+        int card_id = room->askForAG(player, card_ids, false, objectName());
+        card_ids.removeOne(card_id);
 
-    ag_list = room->getTag("AmazingGrace").toList();
+        room->takeAG(player, card_id);
+        ag_list.removeOne(card_id);
+    }
 
     // throw the rest cards
     foreach(QVariant card_id, ag_list){
@@ -159,45 +162,33 @@ void AmazingGrace::use(Room *room, ServerPlayer *source, const QList<ServerPlaye
     room->broadcastInvoke("clearAG");
 }
 
-void AmazingGrace::onEffect(const CardEffectStruct &effect) const{
-    Room *room = effect.from->getRoom();
-    QVariantList ag_list = room->getTag("AmazingGrace").toList();
-    QList<int> card_ids;
-    foreach(QVariant card_id, ag_list)
-        card_ids << card_id.toInt();
-
-    int card_id = room->askForAG(effect.to, card_ids, false, objectName());
-    card_ids.removeOne(card_id);
-
-    room->takeAG(effect.to, card_id);
-    ag_list.removeOne(card_id);
-
-    room->setTag("AmazingGrace", ag_list);
-}
-
 ArcheryAttack::ArcheryAttack(Card::Suit suit, int number)
-    :AOE(suit, number)
+    :TrickCard(suit, number, true)
 {
     setObjectName("archery_attack");
 }
 
-void ArcheryAttack::onEffect(const CardEffectStruct &effect) const{
-    Room *room = effect.to->getRoom();
-    const Card *jink = room->askForCard(effect.to, "jink", "archery-attack-jink:" + effect.from->objectName());
-    if(jink){
-        room->setEmotion(effect.to, "jink");
-        if(jink->objectName() == "ingenarg")
-            effect.to->drawCards(1);
-    }
-    else{
-        DamageStruct damage;
-        damage.card = this;
-        damage.damage = 1;
-        damage.from = effect.from;
-        damage.to = effect.to;
-        damage.nature = DamageStruct::Normal;
+void ArcheryAttack::use(Room *room, ServerPlayer *source, const QList<ServerPlayer *> &targets) const{
+    room->throwCard(this);
 
-        room->damage(damage);
+    QList<ServerPlayer *> players = targets.isEmpty() ? room->getOtherPlayers(source) : targets;
+    foreach(ServerPlayer *player, players){
+        const Card *jink = room->askForCard(player, "jink", "archery-attack-jink:" + source->objectName());
+        if(jink){
+            room->setEmotion(player, "jink");
+            if(jink->objectName() == "ingenarg")
+                player->drawCards(1);
+        }
+        else{
+            DamageStruct damage;
+            damage.card = this;
+            damage.damage = 1;
+            damage.from = source;
+            damage.to = player;
+            damage.nature = DamageStruct::Normal;
+
+            room->damage(damage);
+        }
     }
 }
 

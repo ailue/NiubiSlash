@@ -87,13 +87,12 @@ public:
     virtual void onUse(Room *room, const CardUseStruct &card_use) const;
 };
 
-class AmazingGrace:public GlobalEffect{
+class AmazingGrace: public TrickCard{
     Q_OBJECT
 
 public:
-    Q_INVOKABLE AmazingGrace(Card::Suit suit, int number);
+    //Q_INVOKABLE AmazingGrace(Card::Suit suit, int number):TrickCard(suit, number, false){ target_fixed = true;}
     virtual void use(Room *room, ServerPlayer *source, const QList<ServerPlayer *> &) const;
-    virtual void onEffect(const CardEffectStruct &effect) const;
 };
 
 class AOE:public TrickCard{
@@ -106,12 +105,12 @@ public:
     virtual void onUse(Room *room, const CardUseStruct &card_use) const;
 };
 
-class ArcheryAttack:public AOE{
+class ArcheryAttack: public TrickCard{
     Q_OBJECT
 
 public:
-    Q_INVOKABLE ArcheryAttack(Card::Suit suit = Heart, int number = 1);
-    virtual void onEffect(const CardEffectStruct &effect) const;
+    //Q_INVOKABLE ArcheryAttack(Card::Suit suit, int number):TrickCard(suit, number, true){ target_fixed = true;}
+    virtual void use(Room *room, ServerPlayer *source, const QList<ServerPlayer *> &) const;
 };
 
 class SingleTargetTrick: public TrickCard{
